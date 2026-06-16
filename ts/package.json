@@ -1,0 +1,51 @@
+{
+  "name": "@tabnas/jsonic-cli",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "dist/jsonic-cli.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "description": "Command-line interface for @tabnas/jsonic — the jsonic and jsonic-bnf commands.",
+  "homepage": "https://github.com/tabnas/jsonic-cli",
+  "keywords": [
+    "jsonic",
+    "json",
+    "cli",
+    "parser",
+    "bnf"
+  ],
+  "author": "Richard Rodger (http://richardrodger.com)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tabnas/jsonic-cli.git"
+  },
+  "scripts": {
+    "test": "node --enable-source-maps --test test/**/*.test.js",
+    "test-watch": "node --test --watch test/**/*.test.js",
+    "watch": "tsc --build src -w",
+    "build": "tsc --build src",
+    "clean": "rm -rf node_modules dist dist-test yarn.lock package-lock.json",
+    "reset": "npm run clean && npm i && npm run build && npm test"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "bin",
+    "LICENSE"
+  ],
+  "bin": {
+    "jsonic": "bin/jsonic"
+  },
+  "devDependencies": {
+    "@tabnas/debug": "file:../../debug/ts",
+    "@tabnas/jsonic": "file:../../jsonic/ts",
+    "@tabnas/parser": "file:../../parser/ts",
+    "@types/node": "25.6.0",
+    "typescript": "6.0.3"
+  },
+  "peerDependencies": {
+    "@tabnas/jsonic": ">=2",
+    "@tabnas/debug": ">=2"
+  }
+}
