@@ -6,14 +6,13 @@
   "engines": {
     "node": ">=24"
   },
-  "description": "Command-line interface for @tabnas/jsonic — the jsonic and jsonic-bnf commands.",
+  "description": "Command-line interface for @tabnas/jsonic — the jsonic command. (BNF/ABNF grammar conversion and its tabnas-bnf CLI live in @tabnas/bnf.)",
   "homepage": "https://github.com/tabnas/jsonic-cli",
   "keywords": [
     "jsonic",
     "json",
     "cli",
-    "parser",
-    "bnf"
+    "parser"
   ],
   "author": "Richard Rodger (http://richardrodger.com)",
   "repository": {
