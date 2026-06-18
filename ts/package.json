@@ -20,8 +20,8 @@
     "url": "git://github.com/tabnas/jsonic-cli.git"
   },
   "scripts": {
-    "test": "node --enable-source-maps --test test/**/*.test.js",
-    "test-watch": "node --test --watch test/**/*.test.js",
+    "test": "node --enable-source-maps --test 'test/**/*.test.js' 'test/**/*.test.ts'",
+    "test-watch": "node --test --watch 'test/**/*.test.js' 'test/**/*.test.ts'",
     "watch": "tsc --build src -w",
     "build": "tsc --build src",
     "clean": "rm -rf node_modules dist dist-test yarn.lock package-lock.json",
