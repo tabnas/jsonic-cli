@@ -102,5 +102,5 @@ Examples:
 {"a":1}
 
 
-See also: http://jsonic.senecajs.org
+See also: https://github.com/tabnas/jsonic
 `
