@@ -27,7 +27,7 @@ import (
 
 // Version is the current version of the jsonic-cli Go module. Kept in sync
 // with ts/package.json by `make publish-go`.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 func main() {
 	// os.Args[1:] mirrors the TypeScript run()'s argv slice from index 2
