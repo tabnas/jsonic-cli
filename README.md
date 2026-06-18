@@ -12,8 +12,8 @@ This repository contains:
 
 See [`ts/README.md`](ts/README.md) for usage.
 
-> The BNF / grammar-conversion CLI lives in [`@tabnas/bnf`](https://github.com/tabnas/abnf)
-> as the `tabnas-bnf` command.
+> The ABNF / grammar-conversion CLI lives in [`@tabnas/abnf`](https://github.com/tabnas/abnf)
+> as the `tabnas-abnf` command.
 
 ## Quick start
 

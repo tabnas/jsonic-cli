@@ -22,9 +22,9 @@ contract is the **CLI behavior** — same flags, same stdout for the same
 inputs (the Go `cmd/jsonic/main_test.go` ports `ts/test/cli.test.js`). The
 repo was created on 2026-06-16; the Go port was added on 2026-06-18.
 
-> The BNF / grammar-conversion CLI is **not here.** It lives in the
-> [`abnf`](https://github.com/tabnas/abnf) repo as the `tabnas-bnf` command
-> (the `@tabnas/bnf` package). This package's `package.json` `description`
+> The ABNF / grammar-conversion CLI is **not here.** It lives in the
+> [`abnf`](https://github.com/tabnas/abnf) repo as the `tabnas-abnf` command
+> (the `@tabnas/abnf` package). This package's `package.json` `description`
 > still mentions a `jsonic-bnf` command (and `bnf` is in its `keywords`),
 > but that is stale text — this repo ships only the `jsonic` bin.
 

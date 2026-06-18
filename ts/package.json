@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=24"
   },
-  "description": "Command-line interface for @tabnas/jsonic — the jsonic command. (BNF/ABNF grammar conversion and its tabnas-bnf CLI live in @tabnas/bnf.)",
+  "description": "Command-line interface for @tabnas/jsonic — the jsonic command. (ABNF grammar conversion and its tabnas-abnf CLI live in @tabnas/abnf.)",
   "homepage": "https://github.com/tabnas/jsonic-cli",
   "keywords": [
     "jsonic",
