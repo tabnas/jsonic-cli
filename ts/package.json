@@ -1,6 +1,6 @@
 {
   "name": "@tabnas/jsonic-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "commonjs",
   "main": "dist/jsonic-cli.js",
   "engines": {
@@ -44,7 +44,7 @@
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "@tabnas/jsonic": ">=2",
-    "@tabnas/debug": ">=2"
+    "@tabnas/jsonic": "^0.2.0",
+    "@tabnas/debug": "^0.2.0"
   }
 }
