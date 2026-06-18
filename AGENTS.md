@@ -15,9 +15,12 @@ wiring, source merging, and serialization. It is the relaxed-JSON
 counterpart to the strict-JSON `tabnas-json` CLI that ships inside the
 `@tabnas/json` package.
 
-This is a **TypeScript-only** repo. There is **no `go/`** and therefore no
-TS↔Go alignment contract, no shared `.tsv` fixtures, and no railroad
-diagram (there is no grammar to draw). The repo was created on 2026-06-16.
+ts/ is canonical; a **Go port** in `go/` (the `jsonic` command, module
+`github.com/tabnas/jsonic-cli/go`) tracks it. There is no grammar here, so
+there is no `.tsv` alignment fixture and no railroad diagram; the TS↔Go
+contract is the **CLI behavior** — same flags, same stdout for the same
+inputs (the Go `cmd/jsonic/main_test.go` ports `ts/test/cli.test.js`). The
+repo was created on 2026-06-16; the Go port was added on 2026-06-18.
 
 > The BNF / grammar-conversion CLI is **not here.** It lives in the
 > [`abnf`](https://github.com/tabnas/abnf) repo as the `tabnas-bnf` command
@@ -35,8 +38,22 @@ diagram (there is no grammar to draw). The repo was created on 2026-06-16.
 | [`ts/test/cli.test.js`](ts/test/cli.test.js) | The test suite — plain committed JS (not compiled), run by `node --test`. Calls `run()` in-process with a fake `console`. |
 | `ts/test/p0.js`, `p1.js`, `p2.js`, `pa-qa.js` | Plugin fixtures exercising the four export shapes `handle_plugins` accepts (bare fn, `.default`, named `[name]`, CamelCased `PaQa`). |
 | `ts/test/foo.jsonic`, `bar.jsonic` | `--file` source fixtures (`bar:1` / `qaz: 2`). |
+| [`go/`](go/) | The Go port (module `github.com/tabnas/jsonic-cli/go`). |
+| [`go/cmd/jsonic/main.go`](go/cmd/jsonic/main.go) | The CLI entry + `run`/`runLog` (arg loop, plugin/option/meta wiring, source merge, serialization). Holds `const Version`. |
+| `go/cmd/jsonic/args.go` | Arg parsing, dotted-path prop bags, plugin registry lookup. |
+| `go/cmd/jsonic/stringify.go` | A `JSON.stringify(value, replacer, space)` port (replacer whitelist, space indent). |
+| `go/cmd/jsonic/help.go` | The `--help` text (mirrors the TS `help()`). |
+| `go/cmd/jsonic/main_test.go` | Port of `ts/test/cli.test.js`. |
+| `go/cmd/jsonic/testdata/foo.jsonic`, `bar.jsonic` | Go `--file` fixtures (same contents as the TS ones). |
 
-There is **no `test/spec/`, no `go/`, no `ts/doc/grammar.*`** — none apply.
+There is **no `test/spec/` and no `ts/doc/grammar.*`** — there is no grammar.
+
+> **Go plugin loading differs from TS.** The TS CLI loads `-p`/`--plugin`
+> modules by `require(<reference>)`; Go cannot load a module by name at
+> runtime, so the Go CLI resolves plugins from a compiled-in registry
+> (empty in the production binary; the tests inject the four fixture
+> plugins as native functions). The `-d`/`--debug` flag uses the
+> first-party `@tabnas/debug` Go plugin (`debug.Debug` + `debug.Describe`).
 
 ## The tabnas engine dependency
 
