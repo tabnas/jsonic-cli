@@ -83,8 +83,8 @@ automatically alongside the CLI.
 
 ## BNF / grammar conversion
 
-The BNF-to-grammar converter and its CLI live in a separate package,
-[`@tabnas/bnf`](https://github.com/tabnas/abnf), exposed as the `tabnas-bnf`
+The ABNF-to-grammar converter and its CLI live in a separate package,
+[`@tabnas/abnf`](https://github.com/tabnas/abnf), exposed as the `tabnas-abnf`
 command.
 
 ## License
