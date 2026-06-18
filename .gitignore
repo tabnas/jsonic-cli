@@ -142,3 +142,10 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 package-lock.json
+
+# Go build artifacts (go/ is the Go port; binaries and local
+# workspace files must not be committed).
+/go/cmd/jsonic/jsonic
+go.work
+go.work.sum
+/go/vendor/
