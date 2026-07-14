@@ -44,7 +44,8 @@
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "@tabnas/jsonic": "^0.2.0",
-    "@tabnas/debug": "^0.2.0"
+    "@tabnas/jsonic": ">=0",
+    "@tabnas/debug": ">=0",
+    "@tabnas/parser": ">=0"
   }
 }
