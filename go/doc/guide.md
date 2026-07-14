@@ -168,9 +168,20 @@ the TS CLI uses meta `log=-1` for the same purpose.)
 
 ## Plugins: an important difference from TS
 
-`-p`/`--plugin` exists for parity, **but the production Go binary cannot load
-a plugin by name** — Go has no runtime `require`. The binary's plugin
-registry is empty, so naming a plugin fails:
+`-p`/`--plugin` cannot load a plugin module by name — Go has no runtime
+`require`. Instead the reference resolves against a **compiled-in
+registry**. The shipped binary has `debug`, `jsonic`, and `json` built in
+(also reachable as `@tabnas/debug` etc.):
+
+```bash
+go run ./cmd/jsonic -p json '{"a":1}'
+```
+
+```
+{"a":1}
+```
+
+Any other reference fails:
 
 ```bash
 go run ./cmd/jsonic -p csv 'a:1'
@@ -180,9 +191,27 @@ go run ./cmd/jsonic -p csv 'a:1'
 Plugin not found: csv
 ```
 
-and the command exits non-zero. Plugins must be **compiled in** via a
-registry; the test suite injects its fixtures this way. See
-[concepts.md](concepts.md#differences-from-the-ts-version) for the rationale.
+and the command exits non-zero. To ship more plugins, build a custom
+binary that registers them first:
+
+```go
+package main
+
+import (
+	"os"
+
+	csv "github.com/tabnas/csv/go"
+	cli "github.com/tabnas/jsonic-cli/go/cli"
+)
+
+func main() {
+	cli.RegisterPlugin("csv", csv.Csv)
+	os.Exit(cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil))
+}
+```
+
+See [concepts.md](concepts.md#differences-from-the-ts-version) for the
+rationale and [reference.md](reference.md#plugins) for the built-in list.
 
 ## Stop flag parsing
 

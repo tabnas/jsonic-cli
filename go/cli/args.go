@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2026 Richard Rodger, Oliver Sturm, and other
 // contributors, MIT License
 
-package main
+package cli
 
 import (
 	"strings"

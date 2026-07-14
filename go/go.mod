@@ -8,4 +8,4 @@ require (
 	github.com/tabnas/parser/go v0.2.0
 )
 
-require github.com/tabnas/json/go v0.2.0 // indirect
+require github.com/tabnas/json/go v0.2.0

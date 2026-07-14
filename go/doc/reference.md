@@ -1,9 +1,12 @@
 # Reference: the Go `jsonic` command
 
-Complete, dry specification of the **Go port** of the `jsonic` CLI, as
-implemented under [`go/cmd/jsonic`](../cmd/jsonic). This is a `package main`
-program — there is no Go library API. The supported interface is the
-command. The import path is `github.com/tabnas/jsonic-cli/go`.
+Complete, dry specification of the **Go port** of the `jsonic` CLI. The
+command entry point is [`go/cmd/jsonic`](../cmd/jsonic), a thin wrapper
+around the [`go/cli`](../cli) library package, whose exported API
+(`cli.Run`, `cli.ReadStdin`, `cli.RegisterPlugin`, `cli.Plugins`) lets
+custom binaries ship additional compiled-in plugins. The import paths are
+`github.com/tabnas/jsonic-cli/go/cli` (library) and
+`github.com/tabnas/jsonic-cli/go/cmd/jsonic` (command).
 
 ## Synopsis
 
@@ -25,7 +28,7 @@ source is read from STDIN. Multiple sources are merged (see
 
 ## Arguments
 
-Identical surface to the TypeScript CLI (`go/cmd/jsonic/args.go` ports the
+Identical surface to the TypeScript CLI (`go/cli/args.go` ports the
 arg loop exactly):
 
 | Flag | Alias | Takes value | Effect |
@@ -88,7 +91,7 @@ to `ParseMeta(source, meta)`.
 
 Output is produced by a faithful port of
 `JSON.stringify(value, replacer, space)` in
-[`go/cmd/jsonic/stringify.go`](../cmd/jsonic/stringify.go):
+[`go/cli/stringify.go`](../cli/stringify.go):
 
 | Option | Effect |
 |---|---|
@@ -104,10 +107,17 @@ strings, escaping, and non-finite handling mirror `JSON.stringify`.
 This is the principal divergence from the TypeScript CLI.
 
 - `-p <require>` resolves the reference against a **compiled-in registry**
-  (`run(...)`'s `plugins map[string]tabnas.Plugin` argument). Go cannot load
-  a module by name at runtime, so there is no dynamic `require`.
-- The **production binary passes a `nil` registry** (`main.go` calls
-  `run(..., nil)`), so naming any plugin fails:
+  (`cli/registry.go`). Go cannot load a module by name at runtime, so
+  there is no dynamic `require`.
+- The shipped binary has these plugins **built in**:
+
+  | Name | Plugin | Effect |
+  |---|---|---|
+  | `debug` | `github.com/tabnas/debug/go`'s `Debug` | Grammar description + parse tracing (options: `-o plugin.debug.trace=...`). |
+  | `jsonic` | `github.com/tabnas/jsonic/go`'s `Grammar` | The relaxed-JSON grammar plugin itself (a no-op on the CLI's default instance). |
+  | `json` | `github.com/tabnas/json/go`'s `Json` | Restrict parsing to strict JSON. |
+
+- A reference that is not in the registry fails:
 
   ```
   Plugin not found: <name>
@@ -116,11 +126,32 @@ This is the principal divergence from the TypeScript CLI.
   and the command exits **`1`**.
 - Resolution tries the bare name, then the base name of a path-like
   reference (`../test/p0` → `p0`, stripping a `.js` suffix), then a
-  `@tabnas/`-stripped tail — mirroring the spirit of the TS scope fallback.
+  `@tabnas/`-stripped tail (`@tabnas/json` → `json`) — mirroring the
+  spirit of the TS scope fallback.
 - Plugin options come from `-o plugin.<name>.<option>=<value>`.
 
-To make a plugin available you must inject it into the registry at compile
-time; the test suite does exactly this (see `main_test.go`'s `testPlugins`).
+To ship any other plugin, build a **custom binary** that registers it via
+`cli.RegisterPlugin` before calling `cli.Run`:
+
+```go
+package main
+
+import (
+	"os"
+
+	csv "github.com/tabnas/csv/go"
+	cli "github.com/tabnas/jsonic-cli/go/cli"
+)
+
+func main() {
+	cli.RegisterPlugin("csv", csv.Csv)
+	os.Exit(cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil))
+}
+```
+
+`cli.Run` also accepts a per-run `extra map[string]tabnas.Plugin` argument
+merged over the registry (same-name entries win); the test suite uses the
+underlying registry parameter to inject fixtures (see `run_test.go`).
 
 ## Debug (`-d` / `--debug`)
 
@@ -133,7 +164,7 @@ plugin is driven by the `trace` option.)
 ## STDIN / STDOUT / STDERR contract
 
 - **STDIN** is read when there are no source-text arguments or `-` is given.
-  A character-device (TTY) STDIN reads as empty (`readStdin` checks
+  A character-device (TTY) STDIN reads as empty (`cli.ReadStdin` checks
   `os.ModeCharDevice`).
 - **STDOUT** receives each output line via `fmt.Fprintln` (the final
   serialized JSON; debug output, when enabled, first).
@@ -144,7 +175,7 @@ plugin is driven by the `trace` option.)
 ## Exit codes
 
 Unlike the TS binary (which does not set an explicit code), the Go `main`
-calls `os.Exit(run(...))` with the code `run` returns:
+calls `os.Exit(cli.Run(...))` with the code `cli.Run` returns:
 
 | Code | When |
 |---|---|
@@ -169,12 +200,14 @@ resolve in Go).
 
 | File | Responsibility |
 |---|---|
-| `cmd/jsonic/main.go` | Entry, `run`/`runLog` (arg→option/meta/plugin wiring, source merge, serialize), `readStdin`, `const Version`. |
-| `cmd/jsonic/args.go` | `parseArgs`, `handleProps`, dotted-path prop bags, `lookupPlugin`. |
-| `cmd/jsonic/stringify.go` | `JSON.stringify(value, replacer, space)` port. |
-| `cmd/jsonic/help.go` | `helpText`. |
-| `cmd/jsonic/main_test.go` | Port of `ts/test/cli.test.js`. |
-| `cmd/jsonic/testdata/{foo,bar}.jsonic` | `--file` fixtures. |
+| `cmd/jsonic/main.go` | Entry point: `cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil)`, `const Version`. |
+| `cli/run.go` | `Run`/`runLog` (arg→option/meta/plugin wiring, source merge, serialize), `ReadStdin`. |
+| `cli/registry.go` | Compiled-in plugin registry: `RegisterPlugin`, `Plugins`, built-ins (`debug`, `jsonic`, `json`). |
+| `cli/args.go` | `parseArgs`, `handleProps`, dotted-path prop bags, `lookupPlugin`. |
+| `cli/stringify.go` | `JSON.stringify(value, replacer, space)` port. |
+| `cli/help.go` | `helpText`. |
+| `cli/run_test.go` | Port of `ts/test/cli.test.js`, plus built-in registry tests. |
+| `cli/testdata/{foo,bar}.jsonic` | `--file` fixtures. |
 
 ## Out of scope
 

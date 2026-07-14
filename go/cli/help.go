@@ -1,13 +1,13 @@
 // Copyright (c) 2020-2026 Richard Rodger, Oliver Sturm, and other
 // contributors, MIT License
 
-package main
+package cli
 
 // helpText is the usage message printed by --help / -h. It mirrors the
-// TypeScript help() output verbatim, with one Go-specific note: plugin
+// TypeScript help() output, with a Go-specific Plugins section: plugin
 // loading by module reference is not available in the Go binary (see the
-// package doc comment in main.go), so the dynamic-require examples are
-// retained for parity but only compiled-in plugins resolve.
+// package doc comment in run.go), so -p resolves against the compiled-in
+// registry instead.
 const helpText = `
 A JSON parser that isn't strict.
 
@@ -51,12 +51,17 @@ Output:
 
 
 Plugins
-  The built-in plugins (found in the ./plugin folder of the distribution) can be
-  specified using the abbreviated references:
-    directive, multisource, csv, toml, ...
+  Plugins are compiled into the binary (Go cannot load modules at runtime).
+  The built-in plugins can be specified using the abbreviated references:
+    debug, jsonic, json
+  (the @tabnas/<name> forms also resolve).
 
   Plugin options can be specified using: ` + "`-o plugin.<name>.<option>=<value>`" + `.
   See the example below.
+
+  To add more plugins, build a custom binary that registers them with the
+  github.com/tabnas/jsonic-cli/go/cli package before calling cli.Run:
+    cli.RegisterPlugin("csv", csv.Csv)
 
 
 Examples:
@@ -91,9 +96,13 @@ Examples:
 {"a":1}
 
 
-# Using plugins (e.g. npm install @tabnas/csv)
+# Using plugins (a custom binary with the csv plugin registered)
 > jsonic -p csv  -o plugin.csv.record.separators=^ "a,b^1,2"
 [{"a":"1","b":"2"}]
+
+# Using built-in plugins
+> jsonic -p json '{"a":1}'
+{"a":1}
 
 
 # Full debug tracing

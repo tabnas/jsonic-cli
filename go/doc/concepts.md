@@ -19,8 +19,10 @@ parsing is the engine's. The command's job is the plumbing around it:
 4. deep-merge the parsed results into one value;
 5. serialize that value to standard JSON and print it.
 
-It is a `package main` program — a tool, not a library. There is no exported
-Go API; you drive it as a command.
+The command (`cmd/jsonic`) is a thin wrapper over the `cli` library
+package, whose small exported API (`Run`, `ReadStdin`, `RegisterPlugin`,
+`Plugins`) exists so custom binaries can compile in additional plugins;
+you normally drive it as a command.
 
 ## The engine relationship
 
@@ -73,7 +75,7 @@ could drift.
 
 ## Testability as a design constraint
 
-`run(argv, stdin, out, plugins)` and its core `runLog(argv, stdin, logger,
+`cli.Run(argv, stdin, out, extra)` and its core `runLog(argv, stdin, logger,
 plugins)` take their inputs and output sink as parameters rather than
 reaching for globals. The tests call `runLog` in-process with a capturing
 `logger` and inspect `logger.lines[0]` — exactly mirroring the TS suite,
@@ -84,18 +86,21 @@ which calls `run` with a fake console and reads `cn.d.log[0][0]`. The
 ## Differences from the TS version
 
 The Go port tracks the TypeScript CLI's *behaviour* — same flags, same
-stdout for the same inputs (`main_test.go` ports `cli.test.js`
+stdout for the same inputs (`cli/run_test.go` ports `cli.test.js`
 one-for-one). The differences are structural, forced by the language:
 
 - **Plugin loading.** The biggest divergence. The TS CLI loads
   `-p`/`--plugin` modules dynamically with `require(<reference>)` (retrying
   the `@tabnas/` scope and normalizing four export shapes). **Go cannot load
   a module by name at runtime.** So the Go CLI resolves plugins from a
-  **compiled-in registry** passed into `run`. The production binary passes a
-  `nil` registry, so naming any plugin prints `Plugin not found: <name>` and
-  exits `1`; the tests inject the four fixture plugins as native Go
-  functions keyed by reference name. To ship a plugin you must compile it
-  in, not name it on the command line.
+  **compiled-in registry** (`cli/registry.go`). The plugins already in the
+  module's dependency graph are pre-registered — `debug`, `jsonic`, and
+  `json` — and custom binaries extend the registry with
+  `cli.RegisterPlugin(name, plugin)` before calling `cli.Run`. Naming an
+  unregistered plugin prints `Plugin not found: <name>` and exits `1`; the
+  tests additionally inject the four fixture plugins as native Go functions
+  keyed by reference name. To ship any other plugin you compile it in, not
+  name it on the command line.
 
 - **Debug driver.** Both install a debug plugin and print a description, but
   the Go debug plugin is driven by its `trace` option (which `-d` sets to
@@ -105,7 +110,7 @@ one-for-one). The differences are structural, forced by the language:
 
 - **Exit codes.** The TS binary does not set an explicit exit code (a caught
   `run` rejection just prints its message). The Go `main` calls
-  `os.Exit(run(...))`, returning `1` on a missing plugin, an unreadable
+  `os.Exit(cli.Run(...))`, returning `1` on a missing plugin, an unreadable
   `--file`, a `Use` failure, or a parse error — and `0` otherwise.
 
 - **Serialization is a hand-written port.** TS calls the built-in

@@ -18,7 +18,7 @@
 //
 //   - Reading source from a real ./test/foo.jsonic file: the Go tests read
 //     from testdata/foo.jsonic (committed with the same contents).
-package main
+package cli
 
 import (
 	"strings"
@@ -150,6 +150,78 @@ func TestBadArgs(t *testing.T) {
 		if out[0] != `{"a":1}` {
 			t.Fatalf("-o %q: got %q", opt, out[0])
 		}
+	}
+}
+
+// captureCode is capture plus the exit code.
+func captureCode(argv []string, stdin string, plugins map[string]tabnas.Plugin) ([]string, int) {
+	c := &logger{}
+	code := runLog(argv, stdin, c, plugins)
+	return c.lines, code
+}
+
+// TestBuiltinPlugins exercises -p/--plugin against the real compiled-in
+// registry (registry.go), not injected fixtures: the shipped binary's
+// built-in plugins are debug, jsonic, and json, resolvable by bare name
+// and by the @tabnas/<name> form (the TS require fallback).
+func TestBuiltinPlugins(t *testing.T) {
+	reg := Plugins()
+	for _, name := range []string{"debug", "jsonic", "json"} {
+		if _, ok := reg[name]; !ok {
+			t.Fatalf("built-in plugin %q not registered", name)
+		}
+	}
+
+	// -p debug loads @tabnas/debug and, like the TS CLI, prints the
+	// grammar description before the parse output.
+	out, code := captureCode([]string{"-p", "debug", "a:1"}, "", Plugins())
+	if code != 0 {
+		t.Fatalf("-p debug: exit %d", code)
+	}
+	if len(out) != 2 || !strings.Contains(out[0], "=== PARSE ===") {
+		t.Fatalf("-p debug: missing describe header: %q", out)
+	}
+	if out[1] != `{"a":1}` {
+		t.Fatalf("-p debug: got %q", out[1])
+	}
+
+	// The @tabnas/<name> reference form resolves to the same plugin.
+	out, code = captureCode([]string{"-p", "@tabnas/debug", "a:1"}, "", Plugins())
+	if code != 0 || out[len(out)-1] != `{"a":1}` {
+		t.Fatalf("-p @tabnas/debug: exit %d, got %q", code, out)
+	}
+
+	// -p jsonic (the grammar plugin itself) is a no-op on the CLI's
+	// default instance.
+	out, code = captureCode([]string{"-p", "jsonic", "a:1"}, "", Plugins())
+	if code != 0 || out[0] != `{"a":1}` {
+		t.Fatalf("-p jsonic: exit %d, got %q", code, out)
+	}
+
+	// -p json restricts the parser to strict JSON.
+	out, code = captureCode([]string{"-p", "json", `{"a":1}`}, "", Plugins())
+	if code != 0 || out[0] != `{"a":1}` {
+		t.Fatalf("-p json strict: exit %d, got %q", code, out)
+	}
+	_, code = captureCode([]string{"-p", "json", "a:1"}, "", Plugins())
+	if code != 1 {
+		t.Fatalf("-p json with relaxed source: exit %d, want 1", code)
+	}
+
+	// An unknown plugin reference is an error (TS: require throws).
+	_, code = captureCode([]string{"-p", "no-such-plugin", "a:1"}, "", Plugins())
+	if code != 1 {
+		t.Fatalf("-p no-such-plugin: exit %d, want 1", code)
+	}
+
+	// RegisterPlugin extends the registry for custom binaries; Run merges
+	// per-run extras over it.
+	RegisterPlugin("cli-test-fixture", valueDefPlugin("F", "f"))
+	out, code = captureCode(
+		[]string{"-p", "cli-test-fixture", "-o", "plugin.cli-test-fixture.f=9", "a:F"},
+		"", Plugins())
+	if code != 0 || out[0] != `{"a":9}` {
+		t.Fatalf("registered fixture: exit %d, got %q", code, out)
 	}
 }
 

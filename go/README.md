@@ -5,9 +5,14 @@ relaxed-JSON parser engine (`github.com/tabnas/jsonic/go`). It reads
 relaxed-JSON source (from arguments, `--file`, or STDIN), parses it, merges
 the results, and prints standard JSON.
 
-Module path: `github.com/tabnas/jsonic-cli/go`. Command: `cmd/jsonic`. This
-is a `package main` program — a tool, not a library. The TypeScript package
-in [`../ts`](../ts) is canonical; this port tracks its behaviour.
+Module path: `github.com/tabnas/jsonic-cli/go`. Command: `cmd/jsonic`, a
+thin wrapper around the `cli` library package. The TypeScript package in
+[`../ts`](../ts) is canonical; this port tracks its behaviour.
+
+`-p`/`--plugin` resolves against a compiled-in plugin registry (Go has no
+runtime `require`): `debug`, `jsonic`, and `json` are built in, and custom
+binaries can register more via `cli.RegisterPlugin` before calling
+`cli.Run` — see [doc/reference.md](doc/reference.md#plugins).
 
 ## Build & run
 
@@ -36,7 +41,8 @@ Four-quadrant [Diátaxis](https://diataxis.fr) docs:
 - [reference.md](doc/reference.md) — every flag, exit code, and contract.
 - [concepts.md](doc/concepts.md) — how it relates to the engine, plus a
   **Differences from the TS version** section (notably: plugins must be
-  compiled in — Go has no runtime `require`).
+  compiled in — Go has no runtime `require`; `debug`, `jsonic`, and `json`
+  are built in).
 
 > No railroad diagram — this CLI has no grammar. ABNF / grammar conversion
 > lives in [`@tabnas/abnf`](https://github.com/tabnas/abnf) (the

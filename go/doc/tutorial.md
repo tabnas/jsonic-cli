@@ -5,9 +5,10 @@ the end you will have built the command and used it to turn relaxed-JSON text
 into standard JSON — from arguments, from a file, and from a pipe.
 
 This is the Go port of the TypeScript `jsonic` command (which is canonical).
-It is a `package main` program — a command-line tool, not a Go library. The
-import path is `github.com/tabnas/jsonic-cli/go`; the command lives at
-`cmd/jsonic`.
+It is a command-line tool. The module path is
+`github.com/tabnas/jsonic-cli/go`; the command lives at `cmd/jsonic`, a
+thin wrapper over the `cli` library package (which custom binaries can use
+to compile in additional `-p`/`--plugin` plugins).
 
 ## Step 1 — Get the code and build
 
