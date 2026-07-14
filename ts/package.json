@@ -37,9 +37,9 @@
     "jsonic": "bin/jsonic"
   },
   "devDependencies": {
-    "@tabnas/debug": "file:../../debug/ts",
-    "@tabnas/jsonic": "file:../../jsonic/ts",
-    "@tabnas/parser": "file:../../parser/ts",
+    "@tabnas/debug": "*",
+    "@tabnas/jsonic": "*",
+    "@tabnas/parser": "*",
     "@types/node": "25.6.0",
     "typescript": "6.0.3"
   },
