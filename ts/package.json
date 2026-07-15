@@ -1,6 +1,6 @@
 {
   "name": "@tabnas/jsonic-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "commonjs",
   "main": "dist/jsonic-cli.js",
   "engines": {
@@ -17,7 +17,8 @@
   "author": "Richard Rodger (http://richardrodger.com)",
   "repository": {
     "type": "git",
-    "url": "git://github.com/tabnas/jsonic-cli.git"
+    "url": "git://github.com/tabnas/jsonic-cli.git",
+    "directory": "ts"
   },
   "scripts": {
     "test": "node --enable-source-maps --test 'test/**/*.test.js' 'test/**/*.test.ts'",
