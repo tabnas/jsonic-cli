@@ -1,5 +1,12 @@
 # @tabnas/jsonic-cli
 
+<!-- tabnas-badges -->
+[![npm](https://tabnas.github.io/status/badges/jsonic-cli-npm.svg)](https://www.npmjs.com/package/@tabnas/jsonic-cli)
+[![CI](https://github.com/tabnas/jsonic-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/tabnas/jsonic-cli/actions/workflows/ci.yml)
+[![go](https://tabnas.github.io/status/badges/jsonic-cli-go.svg)](https://pkg.go.dev/github.com/tabnas/jsonic-cli/go)
+[![tabnas standard](https://tabnas.github.io/status/badges/jsonic-cli-standard.svg)](https://tabnas.github.io/status/)
+<!-- /tabnas-badges -->
+
 Command-line interface for [`@tabnas/jsonic`](https://github.com/tabnas/jsonic) —
 a JSON parser that isn't strict. Installs the `jsonic` command, which parses
 relaxed-JSON source (from arguments, files, or STDIN) and prints standard
