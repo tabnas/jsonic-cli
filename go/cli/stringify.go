@@ -103,10 +103,11 @@ func toKeyString(v any) string {
 // stringify serializes a parsed value to a string exactly like the browser
 // JSON.stringify(value, replacer, space): object keys are filtered by the
 // replacer whitelist (when non-nil, recursively at every object level) and
-// indentation follows the space string. Like Go's encoding/json and a
-// faithful match for every cli.test.js expectation, object keys are emitted
-// in sorted order (the engine's parse result is an unordered map, so there
-// is no insertion order to preserve).
+// indentation follows the space string. The engine's parse result is now an
+// insertion-ordered *jsonic.OrderedMap (TS-engine parity), so object keys are
+// emitted in SOURCE order — the order they appeared in the input — matching
+// JSON.stringify over a JS object. A plain map[string]any (which carries no
+// order) still falls back to sorted-key emission.
 func stringify(value any, replacer []string, space string) string {
 	// JSON.stringify(undefined) returns the JS value undefined (not a
 	// string); console.log(undefined) then prints the literal "undefined".
@@ -140,6 +141,8 @@ func writeValue(b *strings.Builder, v any, replacer []string, space, indent stri
 		b.WriteString(strconv.FormatInt(t, 10))
 	case int32:
 		b.WriteString(strconv.FormatInt(int64(t), 10))
+	case *jsonic.OrderedMap:
+		writeOrderedObject(b, t, replacer, space, indent)
 	case map[string]any:
 		writeObject(b, t, replacer, space, indent)
 	case []any:
@@ -184,6 +187,50 @@ func writeObject(b *strings.Builder, m map[string]any, replacer []string, space,
 			b.WriteByte(' ')
 		}
 		writeValue(b, m[k], replacer, space, newIndent)
+	}
+	if space != "" {
+		b.WriteByte('\n')
+		b.WriteString(indent)
+	}
+	b.WriteByte('}')
+}
+
+// writeOrderedObject serializes an OrderedMap parse node in SOURCE key order
+// (om.Keys), applying the replacer whitelist. Unlike writeObject it does not
+// sort: the engine's parse result preserves insertion order (TS-engine
+// parity), so a faithful stringify emits keys in the order they appeared in
+// the source, exactly like JSON.stringify over a JS object.
+func writeOrderedObject(b *strings.Builder, om *jsonic.OrderedMap, replacer []string, space, indent string) {
+	keys := make([]string, 0, len(om.Keys))
+	for _, k := range om.Keys {
+		if replacer != nil && !inSet(replacer, k) {
+			continue
+		}
+		// JSON.stringify omits keys whose value is undefined/function; the
+		// engine never produces those, so all remaining keys are kept.
+		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		b.WriteString("{}")
+		return
+	}
+
+	newIndent := indent + space
+	b.WriteByte('{')
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		if space != "" {
+			b.WriteByte('\n')
+			b.WriteString(newIndent)
+		}
+		writeString(b, k)
+		b.WriteByte(':')
+		if space != "" {
+			b.WriteByte(' ')
+		}
+		writeValue(b, om.Vals[k], replacer, space, newIndent)
 	}
 	if space != "" {
 		b.WriteByte('\n')

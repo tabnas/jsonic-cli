@@ -125,7 +125,10 @@ func setProp(bag map[string]any, path string, val any) {
 	cur := bag
 	for i := 0; i < len(parts)-1; i++ {
 		k := parts[i]
-		next, ok := cur[k].(map[string]any)
+		// An intermediate node is normally a plain map this function built,
+		// but a leaf value parsed by jsonic can be an insertion-ordered
+		// *OrderedMap; AsStringMap unwraps either shape for descent.
+		next, ok := tabnas.AsStringMap(cur[k])
 		if !ok {
 			next = map[string]any{}
 			cur[k] = next
@@ -152,11 +155,11 @@ func engineOptions(bag map[string]any) map[string]any {
 
 // pluginOptionMap returns the options.plugin.<name> sub-bag, or nil.
 func pluginOptionMap(bag map[string]any, name string) map[string]any {
-	pl, ok := bag["plugin"].(map[string]any)
+	pl, ok := tabnas.AsStringMap(bag["plugin"])
 	if !ok {
 		return nil
 	}
-	po, ok := pl[name].(map[string]any)
+	po, ok := tabnas.AsStringMap(pl[name])
 	if !ok {
 		return nil
 	}
