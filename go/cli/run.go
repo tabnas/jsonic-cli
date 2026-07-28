@@ -157,7 +157,13 @@ func runLog(argv []string, stdin string, c *logger, plugins map[string]tabnas.Pl
 	// (Deep skips Undefined overlays, so empty sources are no-ops).
 	data := map[string]any{"val": nil}
 	mergeVal := func(v any) {
-		data = tabnas.Deep(data, map[string]any{"val": v}).(map[string]any)
+		// Deep keeps the accumulator's top-level shape a string map; parsed
+		// object values under "val" are now insertion-ordered *OrderedMaps,
+		// so unwrap via AsStringMap rather than a bare map[string]any
+		// assertion (which an OrderedMap accumulator would fail).
+		if m, ok := tabnas.AsStringMap(tabnas.Deep(data, map[string]any{"val": v})); ok {
+			data = m
+		}
 	}
 
 	for _, fp := range args.files {
@@ -197,7 +203,7 @@ func runLog(argv []string, stdin string, c *logger, plugins map[string]tabnas.Pl
 
 	// Serialize with JSON.replacer / JSON.space, exactly as the TS CLI does
 	// via JSON.stringify(data.val, replacer, space).
-	jsonBag, _ := optionsBag["JSON"].(map[string]any)
+	jsonBag, _ := tabnas.AsStringMap(optionsBag["JSON"])
 	replacer := parseReplacer(jsonBag)
 	space := parseSpace(jsonBag)
 
