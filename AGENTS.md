@@ -16,10 +16,12 @@ counterpart to the strict-JSON `tabnas-json` CLI that ships inside the
 `@tabnas/json` package.
 
 ts/ is canonical; a **Go port** in `go/` (the `jsonic` command, module
-`github.com/tabnas/jsonic-cli/go`) tracks it. There is no grammar here, so
-there is no `.tsv` alignment fixture and no railroad diagram; the TS↔Go
-contract is the **CLI behavior** — same flags, same stdout for the same
-inputs (the Go `cmd/jsonic/main_test.go` ports `ts/test/cli.test.js`). The
+`github.com/tabnas/jsonic-cli/go`) tracks it. There is no grammar here and
+no railroad diagram; the TS↔Go contract is the **CLI behavior** — same
+flags, same stdout for the same inputs. It is pinned by the shared
+`test/spec/*.tsv` fixtures, one row per argv (see
+[`test/AGENTS.md`](test/AGENTS.md)), with the plugin-loading and
+filesystem cases left in the in-language suites. The
 repo was created on 2026-06-16; the Go port was added on 2026-06-18.
 
 > The ABNF / grammar-conversion CLI is **not here.** It lives in the
