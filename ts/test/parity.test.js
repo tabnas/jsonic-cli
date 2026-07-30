@@ -68,11 +68,15 @@ async function runCli(argv, stdin) {
   const cn = {
     test$: undefined === stdin ? true : stdin,
     d,
-    log: (...rest) => d.log.push(rest),
+    // Render each line the way console.log would — arguments stringified and
+    // space-joined. The Go logger captures rendered text, so returning a raw
+    // JS value here (e.g. `undefined` for an empty parse) would report a
+    // false mismatch against a fixture holding the string "undefined".
+    log: (...rest) => d.log.push(rest.map(String).join(' ')),
     dir: (...rest) => d.dir.push(rest),
   }
   await JsonicCli.run([0, 0, ...argv], cn)
-  return d.log.length ? d.log[0][0] : ''
+  return d.log.length ? d.log[0] : ''
 }
 
 function runSpec(file) {

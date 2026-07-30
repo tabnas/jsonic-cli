@@ -86,7 +86,9 @@ func loadSpec(t *testing.T, path string) []specRow {
 		if lineNo == 1 {
 			continue // header naming the columns
 		}
-		line := scanner.Text()
+		// Strip the CR of a CRLF line: the TS loader splits on /\r?\n/ and
+		// drops it, so keeping it here would feed the runtimes different bytes.
+		line := strings.TrimSuffix(scanner.Text(), "\r")
 		// A comment line starts with '#' and has no tab; a data row always
 		// has at least one (argv + stdout), so '#'-leading data still works.
 		if line == "" || (strings.HasPrefix(line, "#") && !strings.Contains(line, "\t")) {
