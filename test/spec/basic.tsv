@@ -1,0 +1,5 @@
+argv	stdout	stdin
+["a:1"]	"{\"a\":1}"
+["-o","number.lex=false","a:1"]	"{\"a\":\"1\"}"
+["a:1","b:[2]","c:{x:1}"]	"{\"a\":1,\"b\":[2],\"c\":{\"x\":1}}"
+["--not-an-arg-so-ignored","a:1"]	"{\"a\":1}"
