@@ -225,6 +225,41 @@ func TestBuiltinPlugins(t *testing.T) {
 	}
 }
 
+// TestDebugFlag mirrors the TypeScript `debug` subtest: -d/--debug installs
+// @tabnas/debug, prints the grammar description ahead of the parse, and
+// still emits the JSON result last. The trace volume is engine-dependent,
+// so pin the two ends, not a line count.
+func TestDebugFlag(t *testing.T) {
+	for _, flag := range []string{"-d", "--debug"} {
+		out, code := captureCode([]string{flag, "a:1"}, "", nil)
+		if code != 0 {
+			t.Fatalf("%s: exit %d", flag, code)
+		}
+		if len(out) < 2 || !strings.Contains(out[0], "=== PARSE ===") {
+			t.Fatalf("%s: missing describe header: %q", flag, out)
+		}
+		if out[len(out)-1] != `{"a":1}` {
+			t.Fatalf("%s: got %q", flag, out[len(out)-1])
+		}
+	}
+
+	// --debug with engine options and `--` ending flag parsing (the TS
+	// `debug` subtest's second case): value.lex=false keeps `true` a string.
+	out, code := captureCode([]string{
+		"--debug", "-o", "debug.maxlen=11",
+		"--option", "value.lex=false", "--", "a:true",
+	}, "", nil)
+	if code != 0 {
+		t.Fatalf("--debug with options: exit %d", code)
+	}
+	if !strings.Contains(out[0], "=== PARSE ===") {
+		t.Fatalf("--debug with options: missing describe header: %q", out[0])
+	}
+	if out[len(out)-1] != `{"a":"true"}` {
+		t.Fatalf("--debug with options: got %q", out[len(out)-1])
+	}
+}
+
 func TestPlugin(t *testing.T) {
 	pl := testPlugins()
 

@@ -3,3 +3,9 @@ argv	stdout	stdin
 ["-o","","a:1"]	"{\"a\":1}"
 ["-o","=","a:1"]	"{\"a\":1}"
 ["-o","bad=","a:1"]	"{\"a\":1}"
+# A value-taking flag in the last position has no value: consume nothing
+# (do not crash) — the Go guard `i+1 < len(argv)`.
+["a:1","-o"]	"{\"a\":1}"
+["a:1","-m"]	"{\"a\":1}"
+["a:1","-f"]	"{\"a\":1}"
+["a:1","-p"]	"{\"a\":1}"

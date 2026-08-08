@@ -171,9 +171,11 @@ await run(argv: string[], console: Console): Promise<void>
 - `argv` mirrors `process.argv`: parsing starts at index `2` (so callers
   pass two placeholder elements before the real arguments, matching
   `[node, script, ...args]`).
-- `console` receives output via `console.log`. Two test hooks: a string
+- `console` receives output via `console.log`. Two test hooks: a **string**
   `console.test$` is used as the STDIN body (instead of reading
-  `process.stdin`), and `console.log` calls are how callers capture output.
+  `process.stdin`) — the empty string meaning "nothing piped in", a
+  non-string meaning "read the real STDIN" — and `console.log` calls are how
+  callers capture output.
 
 This is an implementation detail used by the test suite, not a stable public
 API. The supported interface is the `jsonic` command.

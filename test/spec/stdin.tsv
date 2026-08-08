@@ -2,3 +2,5 @@ argv	stdout	stdin
 []	"{\"a\":1}"	{a:1}
 ["-"]	"{\"a\":1}"	{a:1}
 ["-","b:2"]	"{\"a\":1,\"b\":2}"	{a:1}
+# No sources and nothing piped in: the seed value serializes as null.
+[]	"null"

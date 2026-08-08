@@ -26,6 +26,12 @@ export async function run(argv: string[], console: Console) {
   for (let aI = 2; aI < argv.length; aI++) {
     let arg = argv[aI]
 
+    // Consume the value of a value-taking flag. A flag in the last position
+    // has no value: consume nothing, rather than pushing `undefined` into a
+    // list that later code would crash on (`undefined.split`). Matches the
+    // Go port's `if i+1 < len(argv)` guard.
+    let value = () => (aI + 1 < argv.length ? [argv[++aI]] : [])
+
     if (accept_args && arg.startsWith('-')) {
       if ('-' === arg) {
         args.stdin = true
@@ -34,13 +40,13 @@ export async function run(argv: string[], console: Console) {
         accept_args = false
       } //
       else if ('--file' === arg || '-f' === arg) {
-        args.files.push(argv[++aI])
+        args.files.push(...value())
       } //
       else if ('--option' === arg || '-o' === arg) {
-        args.options.push(argv[++aI])
+        args.options.push(...value())
       } //
       else if ('--meta' === arg || '-m' === arg) {
-        args.meta.push(argv[++aI])
+        args.meta.push(...value())
       } //
       else if ('--debug' === arg || '-d' === arg) {
         // @tabnas/debug's Debug is typed against the bare engine; it runs
@@ -52,7 +58,7 @@ export async function run(argv: string[], console: Console) {
         args.help = true
       } //
       else if ('--plugin' === arg || '-p' === arg) {
-        args.plugins.push(argv[++aI])
+        args.plugins.push(...value())
       } //
       else if ('--nice' === arg || '-n' === arg) {
         args.options.push('JSON.space=2')

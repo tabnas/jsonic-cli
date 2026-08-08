@@ -3,3 +3,12 @@ argv	stdout	stdin
 ["-n","a:1"]	"{\n  \"a\": 1\n}"
 ["-o","JSON.replacer=[b]","a:1,b:2"]	"{\"b\":2}"
 ["-o","JSON.replacer=b","a:1,b:2"]	"{\"b\":2}"
+# JSON.space clamps like JSON.stringify: >10 becomes 10, <0 becomes none.
+["-o","JSON.space=20","a:1"]	"{\n          \"a\": 1\n}"
+["-o","JSON.space=-1","a:1"]	"{\"a\":1}"
+# A string space is used verbatim at every depth.
+["-o","JSON.space=\"--\"","a:b:1"]	"{\n--\"a\": {\n----\"b\": 1\n--}\n}"
+# The replacer whitelist filters nested objects too, and coerces a
+# numeric key to its string form.
+["-o","JSON.replacer=[a,c]","a:1,b:2,c:{a:3,b:4}"]	"{\"a\":1,\"c\":{\"a\":3}}"
+["-o","JSON.replacer=1","a:1,1:2"]	"{\"1\":2}"
