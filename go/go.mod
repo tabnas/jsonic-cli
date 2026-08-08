@@ -3,9 +3,9 @@ module github.com/tabnas/jsonic-cli/go
 go 1.24.7
 
 require (
-	github.com/tabnas/debug/go v0.2.9
-	github.com/tabnas/jsonic/go v0.4.4
-	github.com/tabnas/parser/go v0.6.3
+	github.com/tabnas/debug/go v0.3.0
+	github.com/tabnas/jsonic/go v0.5.0
+	github.com/tabnas/parser/go v0.7.0
 )
 
-require github.com/tabnas/json/go v0.4.4
+require github.com/tabnas/json/go v0.5.0
