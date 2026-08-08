@@ -200,7 +200,7 @@ resolve in Go).
 
 | File | Responsibility |
 |---|---|
-| `cmd/jsonic/main.go` | Entry point: `cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil)`, `const Version`. |
+| `cmd/jsonic/main.go` | Entry point: `cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil)`, `const VERSION`. |
 | `cli/run.go` | `Run`/`runLog` (arg→option/meta/plugin wiring, source merge, serialize), `ReadStdin`. |
 | `cli/registry.go` | Compiled-in plugin registry: `RegisterPlugin`, `Plugins`, built-ins (`debug`, `jsonic`, `json`). |
 | `cli/args.go` | `parseArgs`, `handleProps`, dotted-path prop bags, `lookupPlugin`. |

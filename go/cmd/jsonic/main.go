@@ -20,15 +20,16 @@ import (
 	cli "github.com/tabnas/jsonic-cli/go/cli"
 )
 
-// Version is the current version of the jsonic-cli Go module. Kept in sync
-// with ts/package.json by the release orchestrator (admin/publish.sh).
+// VERSION is this module's version. It MUST equal ts/package.json
+// "version": the release orchestrator rewrites both, and
+// TestVersionMatchesPackageJSON fails the build if they drift.
 //
 // This const sits under go/cmd/ rather than in a package root, which the
 // orchestrator's file discovery used to miss — so it silently stayed at 0.4.0
 // while the package shipped 0.4.1 and 0.4.2. Discovery now searches the whole
 // module, so future releases rewrite it. If you move this const, keep it the
-// only `^const Version =` in the module.
-const Version = "0.4.3"
+// only `^const VERSION =` in the module.
+const VERSION = "0.4.3"
 
 func main() {
 	// os.Args[1:] mirrors the TypeScript run()'s argv slice from index 2

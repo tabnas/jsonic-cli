@@ -160,8 +160,9 @@ followed by the argument list and worked examples.
 
 ## The `run` entry point (internal)
 
-The package's only export is `run`, the testable in-process entry point the
-binary calls:
+The package exports `run`, the testable in-process entry point the binary
+calls, and `VERSION`, the baked-in version string (equal to `package.json`
+"version"; a drift test fails the build if they diverge):
 
 ```ts
 import { run } from '@tabnas/jsonic-cli'
