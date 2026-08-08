@@ -45,7 +45,7 @@ repo was created on 2026-06-16; the Go port was added on 2026-06-18.
 | [`ts/doc/`](ts/doc/) | Diátaxis docs (tutorial / guide / reference / concepts). No `grammar.*` — there is no grammar. |
 | [`test/spec/`](test/spec/) | The shared TSV fixtures both runtimes run — see [`test/AGENTS.md`](test/AGENTS.md). |
 | [`go/`](go/) | The Go port (module `github.com/tabnas/jsonic-cli/go`). |
-| [`go/cmd/jsonic/main.go`](go/cmd/jsonic/main.go) | Thin entry: `cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil)`. Holds `const Version` (injected by `make publish-go`). |
+| [`go/cmd/jsonic/main.go`](go/cmd/jsonic/main.go) | Thin entry: `cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil)`. Holds `const VERSION` (injected by `make publish-go`). |
 | [`go/cli/run.go`](go/cli/run.go) | The library package: `Run`/`runLog` (plugin/option/meta wiring, source merge, serialization) + `ReadStdin`. |
 | `go/cli/args.go` | Arg parsing, dotted-path prop bags, plugin registry lookup. |
 | `go/cli/registry.go` | The compiled-in plugin registry + `RegisterPlugin`/`Plugins`. |
@@ -213,7 +213,7 @@ is a direct `rm -rf ts/dist ts/dist-test` plus `go clean` (it does *not*
 run the npm `clean` script, which would also wipe `node_modules` and the
 lockfile). `make publish-ts` runs the tests then `npm publish --access
 public` at the `package.json` version;
-`make publish-go V=x.y.z` injects `V` into the `const Version` in
+`make publish-go V=x.y.z` injects `V` into the `const VERSION` in
 `go/cmd/jsonic/main.go`, commits, and tags `go/vX.Y.Z`. `make reset`
 delegates to the `ts/` `reset` script and rebuilds/retests Go.
 
