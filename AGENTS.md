@@ -212,7 +212,7 @@ The repo-root [`Makefile`](Makefile) also carries the Go targets
 is a direct `rm -rf ts/dist ts/dist-test` plus `go clean` (it does *not*
 run the npm `clean` script, which would also wipe `node_modules` and the
 lockfile). `make publish-ts` runs the tests then `npm publish --access
-public` at the `package.json` version (currently `0.4.1`);
+public` at the `package.json` version;
 `make publish-go V=x.y.z` injects `V` into the `const Version` in
 `go/cmd/jsonic/main.go`, commits, and tags `go/vX.Y.Z`. `make reset`
 delegates to the `ts/` `reset` script and rebuilds/retests Go.
