@@ -3,3 +3,13 @@ argv	stdout	stdin
 ["-o","number.lex=false","a:1"]	"{\"a\":\"1\"}"
 ["a:1","b:[2]","c:{x:1}"]	"{\"a\":1,\"b\":[2],\"c\":{\"x\":1}}"
 ["--not-an-arg-so-ignored","a:1"]	"{\"a\":1}"
+# Dotted keys deep-merge across sources (the help text example).
+["a:b:1","a:c:2"]	"{\"a\":{\"b\":1,\"c\":2}}"
+# An empty source parses to nothing and leaves the seed value untouched.
+[""]	"null"
+# Number formatting parity: exponent, fraction, and negative zero.
+["a:1e3"]	"{\"a\":1000}"
+["a:0.1"]	"{\"a\":0.1}"
+["a:-0"]	"{\"a\":0}"
+# Object keys print in SOURCE order, not sorted (JSON.stringify parity).
+["z:1,a:2,m:{y:1,b:2}"]	"{\"z\":1,\"a\":2,\"m\":{\"y\":1,\"b\":2}}"

@@ -16,8 +16,10 @@ binaries can register more via `cli.RegisterPlugin` before calling
 
 ## Build & run
 
-The module wraps unpublished `@tabnas` Go siblings via `replace` directives
-(see [`go.mod`](go.mod)); clone them as siblings first. Then:
+[`go.mod`](go.mod) requires the `@tabnas` Go siblings (`jsonic`, `parser`,
+`debug`, `json`) at published versions; a local checkout resolves them
+through the repo-set `go.work` instead, so clone them as siblings first.
+Then:
 
 ```bash
 cd go
@@ -55,7 +57,10 @@ cd go
 go test ./...
 ```
 
-The Go tests port `../ts/test/cli.test.js` one-for-one.
+`cli/run_test.go` ports `../ts/test/cli.test.js` one-for-one, and
+`cli/parity_test.go` runs the shared `../test/spec/*.tsv` fixtures that the
+TypeScript suite also runs — so the two implementations cannot drift
+without one of them going red.
 
 ## License
 

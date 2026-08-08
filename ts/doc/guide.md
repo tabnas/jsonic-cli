@@ -224,9 +224,11 @@ to verify the recipes above against real behaviour.)
 const { run } = require('@tabnas/jsonic-cli')
 
 // Drive the CLI in-process and return its last printed line.
+// `test$` is the STDIN body: keep it a STRING — the empty string means
+// "nothing piped in". A non-string makes run() read the real process.stdin.
 async function jsonic(args, stdin) {
   const lines = []
-  const cn = { test$: stdin == null ? true : stdin, log: (...a) => lines.push(a.join(' ')), error: () => {} }
+  const cn = { test$: stdin == null ? '' : stdin, log: (...a) => lines.push(a.join(' ')), error: () => {} }
   await run([null, null, ...args], cn)
   return lines[lines.length - 1]
 }
@@ -237,4 +239,6 @@ await jsonic(['-n', 'a:1'])                            // => '{\n  "a": 1\n}'
 await jsonic(['-o', 'JSON.replacer=[b]', 'a:1,b:2'])   // => '{"b":2}'
 await jsonic(['-o', 'number.lex=false', 'a:1'])        // => '{"a":"1"}'
 await jsonic([], 'x:1')                                // => '{"x":1}'
+await jsonic(['--', '-o'])                             // => '"-o"'
+await jsonic(['a:1', '-o'])                            // => '{"a":1}'
 ```

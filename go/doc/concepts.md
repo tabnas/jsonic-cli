@@ -115,12 +115,13 @@ one-for-one). The differences are structural, forced by the language:
 
 - **Serialization is a hand-written port.** TS calls the built-in
   `JSON.stringify`. Go reimplements it in `stringify.go` (replacer
-  whitelist, space indent, number/string escaping). One observable
-  consequence: the engine's parse result is an unordered `map[string]any`,
-  so the Go serializer emits **object keys in sorted order**. The TS side
-  preserves the engine's key order. For the simple objects in the test
-  suite the two agree, but key ordering is the place to watch if outputs
-  ever differ.
+  whitelist, space indent, number/string escaping). Key order matches:
+  the engine returns an insertion-ordered `*jsonic.OrderedMap`, and the
+  serializer walks `om.Keys`, so objects print in **source order** exactly
+  as `JSON.stringify` does over a JS object. (A plain, order-less
+  `map[string]any` — which the engine no longer produces for parse results
+  — still falls back to sorted keys.) `test/spec/basic.tsv` pins a
+  non-alphabetical object to keep the two sides honest.
 
 - **Empty-result wiring.** The Go CLI explicitly forces the engine's
   `Lex.EmptyResult` to the Undefined sentinel so empty source parses to

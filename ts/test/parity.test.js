@@ -66,7 +66,12 @@ function loadSpec(file) {
 async function runCli(argv, stdin) {
   const d = { log: [], dir: [] }
   const cn = {
-    test$: undefined === stdin ? true : stdin,
+    // An absent stdin column means "nothing piped in": pass the empty
+    // string, exactly what the Go runner passes, and what the real CLI
+    // sees at a terminal. It must stay a string — a truthy non-string
+    // makes read_stdin() fall through to the real process.stdin, which
+    // never ends under `node --test`.
+    test$: undefined === stdin ? '' : stdin,
     d,
     // Render each line the way console.log would — arguments stringified and
     // space-joined. The Go logger captures rendered text, so returning a raw

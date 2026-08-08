@@ -1,0 +1,12 @@
+argv	stdout	stdin
+# Flag surface: end-of-flags, long-form aliases, --meta, --debug.
+# `--` stops flag parsing, so the following tokens are parsed as sources.
+["--","-h"]	"\"-h\""
+["--","a:1","-n"]	"\"-n\""
+# Long forms of -o / -n / -m.
+["--option","JSON.space=2","a:1"]	"{\n  \"a\": 1\n}"
+["--nice","a:1"]	"{\n  \"a\": 1\n}"
+["-m","x=1","a:1"]	"{\"a\":1}"
+["--meta","x=1","a:1"]	"{\"a\":1}"
+# -d prints the grammar description before the parse (first logged line).
+["-d","a:1"]	CONTAINS:=== PARSE ===
