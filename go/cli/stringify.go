@@ -272,8 +272,19 @@ func formatNumber(f float64) string {
 	if math.IsNaN(f) || math.IsInf(f, 0) {
 		return "null"
 	}
+	// JSON.stringify(-0) is "0", not "-0".
+	if f == 0 {
+		return "0"
+	}
 	if f == math.Trunc(f) && math.Abs(f) < 1e21 {
-		return strconv.FormatInt(int64(f), 10)
+		// Shortest round-trippable digits in fixed notation — what JS
+		// Number→string produces below 1e21. Deliberately NOT the exact
+		// integer value via FormatInt(int64(f)): past 2^53 the two differ
+		// (JS prints 2^63 as 9223372036854776000, not 9223372036854775808),
+		// and outside int64 range a Go float→int conversion is undefined
+		// and wraps — 0xFFFFFFFFFFFFFFFF (1.8446744073709552e19, which the
+		// engine now yields as a float64) came out as -9223372036854775808.
+		return strconv.FormatFloat(f, 'f', -1, 64)
 	}
 	return strconv.FormatFloat(f, 'g', -1, 64)
 }

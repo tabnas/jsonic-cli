@@ -13,3 +13,7 @@ argv	stdout	stdin
 ["a:-0"]	"{\"a\":0}"
 # Object keys print in SOURCE order, not sorted (JSON.stringify parity).
 ["z:1,a:2,m:{y:1,b:2}"]	"{\"z\":1,\"a\":2,\"m\":{\"y\":1,\"b\":2}}"
+# A base-prefixed integer past int64 keeps its exact mathematical value,
+# rounded once to float64 (parser 0.8.1 / jsonic 0.6.1). Not clamped to
+# MaxInt64, and not wrapped negative by a Go float->int64 conversion.
+["a:0xFFFFFFFFFFFFFFFF"]	"{\"a\":18446744073709552000}"
