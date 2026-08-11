@@ -12,7 +12,7 @@ type Bag = { [key: string]: any }
 // VERSION is this package's version. It MUST equal package.json "version":
 // the release orchestrator rewrites both, and the version test fails the
 // build if they drift. Mirrors `const VERSION` in go/cmd/jsonic/main.go.
-export const VERSION = '0.5.1'
+export const VERSION = '0.5.2'
 
 export async function run(argv: string[], console: Console) {
   const args = {
