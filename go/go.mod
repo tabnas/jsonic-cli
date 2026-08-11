@@ -9,3 +9,5 @@ require (
 )
 
 require github.com/tabnas/json/go v0.5.2
+
+require github.com/tabnas/support/go v0.3.0
