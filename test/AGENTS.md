@@ -21,11 +21,23 @@ JSON's own escape rules apply.
 
 ## Who runs what
 
-- TypeScript: `ts/test/parity.test.js` — reads `../../test/spec`.
-- Go: `go/cli/parity_test.go` — `TestSpec` globs `../../test/spec/*.tsv`.
+- TypeScript: `ts/test/parity.test.js` — the shared loader, a local loop.
+- Go: `go/cli/parity_test.go` — `support.Runner{...}.Dir(t, dir)`.
+
+Both read the fixtures with
+[`@tabnas/support`](https://github.com/tabnas/support) and its Go half —
+the same loader, escape codec and value comparison, so the two cannot
+drift from each other.
+
+The Go side also uses the shared ROW LOOP; the TypeScript side cannot,
+because running the CLI there is asynchronous and the loop is synchronous
+in both languages (Go has no async to be). That is the one asymmetry, and
+it is confined to the loop: everything the loop reads and compares with is
+shared.
 
 Both discover files by directory listing: adding a `.tsv` here runs it in
-both runtimes without touching either runner.
+both runtimes without touching either runner. An empty fixture, and a spec
+directory with no fixtures in it, both **fail**.
 
 Cases that turn on how a runtime loads code or reads the filesystem stay
 out of here, in `ts/test/cli.test.js` and `go/cli/run_test.go`: the `-p`
