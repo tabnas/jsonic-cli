@@ -29,7 +29,7 @@ import (
 // while the package shipped 0.4.1 and 0.4.2. Discovery now searches the whole
 // module, so future releases rewrite it. If you move this const, keep it the
 // only `^const VERSION =` in the module.
-const VERSION = "0.5.2"
+const VERSION = "0.5.3"
 
 func main() {
 	// os.Args[1:] mirrors the TypeScript run()'s argv slice from index 2
