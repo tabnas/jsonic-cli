@@ -12,6 +12,8 @@ a JSON parser that isn't strict. Installs the `jsonic` command, which parses
 relaxed-JSON source (from arguments, files, or STDIN) and prints standard
 JSON.
 
+Docs, guides, the error reference and the playground: **[tabnas.dev](https://tabnas.dev)**.
+
 This repo has **no grammar of its own**: it is a thin wrapper that delegates
 all parsing to `@tabnas/jsonic` and adds argument parsing, source merging,
 and serialization.
