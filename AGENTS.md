@@ -190,13 +190,14 @@ From the repo root, `make build` (= `build-ts` + `build-go`) and
 `make test` (= `test-ts` + `test-go`) do everything. Per runtime:
 
 ```bash
-cd ts
-npm install            # peers auto-install; @tabnas siblings are symlinks
-npm run build          # tsc --build src   (NOT "src test")
-npm test               # node --enable-source-maps --test 'test/**/*.test.js' 'test/**/*.test.ts'
-
-cd ../go
-go build ./... && go test ./...
+(
+  cd ts
+  npm install            # peers auto-install; @tabnas siblings are symlinks
+  npm run build          # tsc --build src   (NOT "src test")
+  npm test               # node --enable-source-maps --test 'test/**/*.test.js' 'test/**/*.test.ts'
+  cd ../go
+  go build ./... && go test ./...
+)
 ```
 
 The key difference from the grammar repos: **`build` compiles `src` only.**
@@ -271,11 +272,13 @@ The steps, in order:
    usually does not, so reproduce that before believing anything:
 
    ```bash
-   cd ts
-   rm -f package-lock.json      # gitignored here; pins the old versions
-   rm -rf node_modules
-   npm install
-   npm run build && npm test
+   (
+     cd ts
+     rm -f package-lock.json      # gitignored here; pins the old versions
+     rm -rf node_modules
+     npm install
+     npm run build && npm test
+   )
    ```
 
    **Removing the lockfile is not enough on its own.** It does not touch
@@ -301,9 +304,11 @@ The steps, in order:
    the sibling directory. Assert its absence first:
 
    ```bash
-   cd go
-   go mod edit -json | grep -q '"Replace": null' || { echo 'go.mod has a replace'; exit 1; }
-   GOWORK=off go test -count=1 ./...
+   (
+     cd go
+     go mod edit -json | grep -q '"Replace": null' || { echo 'go.mod has a replace'; exit 1; }
+     GOWORK=off go test -count=1 ./...
+   )
    ```
 
    `-count=1` because shared fixtures live outside the Go module, so a
