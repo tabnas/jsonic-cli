@@ -60,7 +60,7 @@ Sources are deep-merged into one result. Precedence, highest (wins) first:
 
 The result is seeded as `{"val": nil}` and each parsed source is folded in
 with `tabnas.Deep(data, {"val": parsed})`. Files are applied first, then
-STDIN, then arguments — so arguments sit highest.
+STDIN, then arguments, so arguments sit highest.
 
 Empty / whitespace-only source parses to the engine's Undefined sentinel,
 which `Deep` skips, so empty sources never clobber accumulated data. When
@@ -126,7 +126,7 @@ This is the principal divergence from the TypeScript CLI.
   and the command exits **`1`**.
 - Resolution tries the bare name, then the base name of a path-like
   reference (`../test/p0` → `p0`, stripping a `.js` suffix), then a
-  `@tabnas/`-stripped tail (`@tabnas/json` → `json`) — mirroring the
+  `@tabnas/`-stripped tail (`@tabnas/json` → `json`), mirroring the
   spirit of the TS scope fallback.
 - Plugin options come from `-o plugin.<name>.<option>=<value>`.
 

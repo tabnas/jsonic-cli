@@ -1,6 +1,6 @@
 # Concepts: how the Go `jsonic` command works, and why
 
-This explains the design of the **Go port** of the `jsonic` command — what
+This explains the design of the **Go port** of the `jsonic` command: what
 it is, how it relates to the parser engine, and where it deliberately
 diverges from the canonical TypeScript CLI. For the *what* see
 [reference.md](reference.md); for step-by-step learning see
@@ -9,7 +9,7 @@ diverges from the canonical TypeScript CLI. For the *what* see
 ## What the CLI actually is
 
 The Go `jsonic` command is a **thin wrapper around
-`github.com/tabnas/jsonic/go`** — the Go port of the relaxed-JSON parser
+`github.com/tabnas/jsonic/go`**, the Go port of the relaxed-JSON parser
 engine. It contains no grammar, no lexer, no parsing rules of its own. All
 parsing is the engine's. The command's job is the plumbing around it:
 
@@ -44,7 +44,7 @@ source text ──────────────────────�
 - **The parsed result** is whatever the engine returns; the CLI does not
   interpret it, only serializes it.
 
-As in TS, this couples arg-value parsing to the engine working — an accepted
+As in TS, this couples arg-value parsing to the engine working, an accepted
 trade-off for a tool whose purpose is to expose that engine.
 
 ## Relaxed in, strict out
@@ -58,7 +58,7 @@ formatting flags; `-n` is sugar for `-o JSON.space=2`.
 
 ## Why sources merge (and the precedence order)
 
-Layering — a base file, piped overrides, last-minute argument tweaks — is the
+Layering (a base file, piped overrides, last-minute argument tweaks) is the
 motivating use case. All three source kinds are accepted and deep-merged.
 The result is seeded `{"val": nil}` and each parsed source folded in with
 `tabnas.Deep`. Files are applied first, then STDIN, then arguments, making
@@ -78,14 +78,14 @@ could drift.
 `cli.Run(argv, stdin, out, extra)` and its core `runLog(argv, stdin, logger,
 plugins)` take their inputs and output sink as parameters rather than
 reaching for globals. The tests call `runLog` in-process with a capturing
-`logger` and inspect `logger.lines[0]` — exactly mirroring the TS suite,
+`logger` and inspect `logger.lines[0]`, exactly mirroring the TS suite,
 which calls `run` with a fake console and reads `cn.d.log[0][0]`. The
 `main()` entry is a thin shim that supplies `os.Args[1:]`, real STDIN, and
 `os.Stdout`.
 
 ## Differences from the TS version
 
-The Go port tracks the TypeScript CLI's *behaviour* — same flags, same
+The Go port tracks the TypeScript CLI's *behaviour*: same flags, same
 stdout for the same inputs (`cli/run_test.go` ports `cli.test.js`
 one-for-one). The differences are structural, forced by the language:
 
@@ -94,8 +94,8 @@ one-for-one). The differences are structural, forced by the language:
   the `@tabnas/` scope and normalizing four export shapes). **Go cannot load
   a module by name at runtime.** So the Go CLI resolves plugins from a
   **compiled-in registry** (`cli/registry.go`). The plugins already in the
-  module's dependency graph are pre-registered — `debug`, `jsonic`, and
-  `json` — and custom binaries extend the registry with
+  module's dependency graph are pre-registered (`debug`, `jsonic`, and
+  `json`), and custom binaries extend the registry with
   `cli.RegisterPlugin(name, plugin)` before calling `cli.Run`. Naming an
   unregistered plugin prints `Plugin not found: <name>` and exits `1`; the
   tests additionally inject the four fixture plugins as native Go functions
@@ -111,7 +111,7 @@ one-for-one). The differences are structural, forced by the language:
 - **Exit codes.** The TS binary does not set an explicit exit code (a caught
   `run` rejection just prints its message). The Go `main` calls
   `os.Exit(cli.Run(...))`, returning `1` on a missing plugin, an unreadable
-  `--file`, a `Use` failure, or a parse error — and `0` otherwise.
+  `--file`, a `Use` failure, or a parse error, and `0` otherwise.
 
 - **Serialization is a hand-written port.** TS calls the built-in
   `JSON.stringify`. Go reimplements it in `stringify.go` (replacer
@@ -119,9 +119,9 @@ one-for-one). The differences are structural, forced by the language:
   the engine returns an insertion-ordered `*jsonic.OrderedMap`, and the
   serializer walks `om.Keys`, so objects print in **source order** exactly
   as `JSON.stringify` does over a JS object. (A plain, order-less
-  `map[string]any` — which the engine no longer produces for parse results
-  — still falls back to sorted keys.) `test/spec/basic.tsv` pins a
-  non-alphabetical object to keep the two sides honest.
+  `map[string]any`, which the engine no longer produces for parse results,
+  still falls back to sorted keys.) `test/spec/basic.tsv` pins a
+  non-alphabetical object so neither side can drift.
 
 - **Empty-result wiring.** The Go CLI explicitly forces the engine's
   `Lex.EmptyResult` to the Undefined sentinel so empty source parses to
@@ -136,14 +136,14 @@ one-for-one). The differences are structural, forced by the language:
 ## What is deliberately *not* here
 
 - **No grammar.** No `.jsonic` grammar, no railroad diagram, no engine code
-  — the parsing rules live in `github.com/tabnas/jsonic/go`.
+  The parsing rules live in `github.com/tabnas/jsonic/go`.
 - **No ABNF / BNF conversion.** That is a separate package,
   [`@tabnas/abnf`](https://github.com/tabnas/abnf) (the `tabnas-abnf`
   command). The only binary here is `jsonic`.
 
 ## See also
 
-- [tutorial.md](tutorial.md) — zero to working result.
-- [guide.md](guide.md) — task recipes.
-- [reference.md](reference.md) — exact flags, exit codes, and contract.
+- [tutorial.md](tutorial.md). Zero to working result.
+- [guide.md](guide.md). Task recipes.
+- [reference.md](reference.md). Exact flags, exit codes, and contract.
 - The canonical TypeScript docs: [../../ts/doc/](../../ts/doc/).
