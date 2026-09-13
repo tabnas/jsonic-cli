@@ -2,7 +2,7 @@
 
 A learning-by-doing walkthrough for the **Go port** of the `jsonic` CLI. By
 the end you will have built the command and used it to turn relaxed-JSON text
-into standard JSON — from arguments, from a file, and from a pipe.
+into standard JSON: from arguments, from a file, and from a pipe.
 
 This is the Go port of the TypeScript `jsonic` command (which is canonical).
 It is a command-line tool. The module path is
@@ -10,7 +10,7 @@ It is a command-line tool. The module path is
 thin wrapper over the `cli` library package (which custom binaries can use
 to compile in additional `-p`/`--plugin` plugins).
 
-## Step 1 — Get the code and build
+## Step 1: Get the code and build
 
 The Go module wraps unpublished `@tabnas` Go siblings (jsonic, parser, json,
 debug) via `replace` directives, so clone them as siblings of this repo
@@ -37,7 +37,7 @@ go install github.com/tabnas/jsonic-cli/go/cmd/jsonic@latest
 The rest of this tutorial uses `go run ./cmd/jsonic`; substitute `jsonic` if
 you installed the binary.
 
-## Step 2 — Parse your first input
+## Step 2: Parse your first input
 
 Pass a relaxed-JSON fragment as an argument. No quotes around the key, no
 surrounding braces:
@@ -52,7 +52,7 @@ go run ./cmd/jsonic a:1
 
 Relaxed in, strict out: that is the whole idea.
 
-## Step 3 — Make it readable
+## Step 3: Make it readable
 
 By default the output is compact. Add `-n` (short for `--nice`) to indent it:
 
@@ -68,7 +68,7 @@ go run ./cmd/jsonic -n a:1
 
 `-n` is sugar for `-o JSON.space=2`.
 
-## Step 4 — Build a bigger object
+## Step 4: Build a bigger object
 
 Pass several fragments; each is parsed and merged into one result. Nest with
 `:` separators:
@@ -91,7 +91,7 @@ go run ./cmd/jsonic 'a:1' 'b:[2]' 'c:{x:1}'
 {"a":1,"b":[2],"c":{"x":1}}
 ```
 
-## Step 5 — Parse a file
+## Step 5: Parse a file
 
 Create a small relaxed-JSON file and parse it with `-f` (short for
 `--file`):
@@ -115,7 +115,7 @@ go run ./cmd/jsonic -f foo.jsonic zed:2
 {"bar":1,"zed":2}
 ```
 
-## Step 6 — Pipe from another command
+## Step 6: Pipe from another command
 
 With no source arguments, the command reads from STDIN:
 
@@ -135,8 +135,8 @@ STDIN.
 
 ## Where to go next
 
-- [guide.md](guide.md) — task recipes.
-- [reference.md](reference.md) — every flag, exit code, and the
+- [guide.md](guide.md). Task recipes.
+- [reference.md](reference.md). Every flag, exit code, and the
   STDIN/STDOUT contract.
-- [concepts.md](concepts.md) — how the CLI relates to the engine, plus a
+- [concepts.md](concepts.md). How the CLI relates to the engine, plus a
   "Differences from the TS version" section.

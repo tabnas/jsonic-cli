@@ -168,7 +168,7 @@ the TS CLI uses meta `log=-1` for the same purpose.)
 
 ## Plugins: an important difference from TS
 
-`-p`/`--plugin` cannot load a plugin module by name — Go has no runtime
+`-p`/`--plugin` cannot load a plugin module by name: Go has no runtime
 `require`. Instead the reference resolves against a **compiled-in
 registry**. The shipped binary has `debug`, `jsonic`, and `json` built in
 (also reachable as `@tabnas/debug` etc.):

@@ -2,7 +2,7 @@
 
 Complete, dry specification of the `jsonic` command-line interface as
 implemented in [`ts/src/jsonic-cli.ts`](../src/jsonic-cli.ts). This package
-is a CLI — there is no public library API beyond the `run` entry point used
+is a CLI: there is no public library API beyond the `run` entry point used
 by the binary (documented at the end).
 
 ## Synopsis
@@ -43,11 +43,11 @@ Notes:
 Sources are collected from three places and deep-merged into a single
 result. Precedence, highest (wins on conflict) first:
 
-1. **Source-text arguments** — each positional `<source-text>`, in
+1. **Source-text arguments**. Each positional `<source-text>`, in
    left-to-right order (later arguments win over earlier ones).
-2. **STDIN** — read when there are no source-text arguments, **or** when `-`
+2. **STDIN**. Read when there are no source-text arguments, **or** when `-`
    is present.
-3. **`--file` sources** — each `-f`/`--file`, in order (later files win over
+3. **`--file` sources**. Each `-f`/`--file`, in order (later files win over
    earlier ones).
 
 Internally the result is seeded as `{ val: null }` and each parsed source is
@@ -71,7 +71,7 @@ Each `-o name=value`:
 - assigns it onto a nested options object at the dotted path `name`.
 
 The assembled options object is passed to `Jsonic.make(options)`, so any
-`@tabnas/jsonic` engine option is settable (e.g. `-o number.lex=false`).
+`@tabnas/jsonic` engine option is settable (for example `-o number.lex=false`).
 Two top-level keys are interpreted by the CLI itself rather than the engine:
 `JSON` (output serialization) and `plugin` (plugin options).
 
@@ -99,14 +99,14 @@ replacer means "no filter".
 
 - `<require>` is passed to `require(...)`.
 - If a **bare** name (no leading `@`) fails to resolve, it retries
-  `require('@tabnas/' + name)` — so `-p csv` finds `@tabnas/csv`.
+  `require('@tabnas/' + name)`, so `-p csv` finds `@tabnas/csv`.
 - Four export shapes are accepted and normalized to the plugin function:
   1. a bare function (`module.exports = fn`),
   2. a `.default` export (`module.exports = { default: fn }`),
   3. a named export matching the CamelCased file basename
-     (e.g. file `pa-qa.js` exporting `PaQa`),
+     (for example file `pa-qa.js` exporting `PaQa`),
   4. a named export matching the lowercase basename
-     (e.g. `module.exports = { p2: fn }`).
+     (for example `module.exports = { p2: fn }`).
 - A reference whose export is none of these throws
   `Plugin is not a function: <name>`.
 
@@ -133,8 +133,8 @@ work (npm 7+ installs it automatically).
   `-` is given. A TTY STDIN reads as empty.
 - **STDOUT** receives the single serialized JSON line via `console.log`
   (debug output, when enabled, is printed first).
-- **STDERR / exit** — the binary catches a rejected `run(...)` and prints
-  `e.message` to `console.error`. Parse errors (e.g. malformed source) reject
+- **STDERR / exit**. The binary catches a rejected `run(...)` and prints
+  `e.message` to `console.error`. Parse errors (for example malformed source) reject
   with a jsonic error message.
 
 ## Exit codes
@@ -174,8 +174,8 @@ await run(argv: string[], console: Console): Promise<void>
   `[node, script, ...args]`).
 - `console` receives output via `console.log`. Two test hooks: a **string**
   `console.test$` is used as the STDIN body (instead of reading
-  `process.stdin`) — the empty string meaning "nothing piped in", a
-  non-string meaning "read the real STDIN" — and `console.log` calls are how
+  `process.stdin`): the empty string means "nothing piped in", a
+  non-string means "read the real STDIN". `console.log` calls are how
   callers capture output.
 
 This is an implementation detail used by the test suite, not a stable public

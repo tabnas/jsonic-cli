@@ -1,6 +1,6 @@
 # Concepts: how `jsonic` works, and why
 
-This explains the design of the `jsonic` command — what it is, how it
+This explains the design of the `jsonic` command: what it is, how it
 relates to the parser engine, and the trade-offs behind its behaviour. For
 the *what* (flags, contract) see [reference.md](reference.md); for
 step-by-step learning see [tutorial.md](tutorial.md).
@@ -38,13 +38,13 @@ source text ──────────────────────�
 - **`-o` options** become the constructor options for `Jsonic.make(...)`.
   Because they are parsed by jsonic itself, you get real typed values
   (`-o number.lex=false` sets the boolean `false`, not the string
-  `"false"`). This is deliberate leverage: the CLI does not reimplement a
+  `"false"`). This is deliberate reuse: the CLI does not reimplement a
   type system, it borrows the engine's.
 - **`-m` meta** becomes the per-parse meta argument `jsonic(text, meta)`.
-- **The parsed result** is whatever the engine returns — an object, array,
+- **The parsed result** is whatever the engine returns: an object, array,
   number, string, etc. The CLI does not interpret it.
 
-The cost of this leverage is a coupling the source code calls out: arg-value
+The cost of this reuse is a coupling the source code calls out: arg-value
 parsing depends on core jsonic working. If the engine breaks, so does
 `-o`/`-m`. That is an accepted trade-off for a tool whose whole purpose is to
 expose that engine.
@@ -71,8 +71,8 @@ one input source, `jsonic` accepts all three and **deep-merges** them into a
 single result.
 
 The result is seeded as `{ val: null }` and each parsed source is folded in
-with a deep merge. The merge is applied in this order — **files, then STDIN,
-then argument fragments** — which makes argument fragments the highest
+with a deep merge. The merge is applied in this order (**files, then STDIN,
+then argument fragments**), which makes argument fragments the highest
 precedence (last applied wins on conflict), STDIN next, files lowest. The
 intuition: the most "immediate" input (what you just typed) should win over
 the most "stored" input (a file).
@@ -89,7 +89,7 @@ Two details fall out of this design:
 ## Plugins: extending the grammar from the command line
 
 Because all parsing is the engine's, extending what `jsonic` understands
-means adding an engine plugin — not changing the CLI. `-p <require>` loads a
+means adding an engine plugin, not changing the CLI. `-p <require>` loads a
 plugin module and `jsonic.use(...)`s it before parsing, so a plugin like
 `@tabnas/csv` makes `jsonic` parse CSV, `@tabnas/toml` makes it parse TOML,
 and so on.
@@ -113,7 +113,7 @@ everything.
 `-d`/`--debug` is not special-cased parsing machinery; it installs the
 `@tabnas/debug` plugin, prints the engine's own grammar description
 (`jsonic.debug.describe()`), and turns on a parse trace. This keeps the CLI
-honest: the diagnostics you see are the engine's, not a separate
+accurate: the diagnostics you see are the engine's, not a separate
 reimplementation that could drift. (This is why `@tabnas/debug` is a real
 runtime peer dependency here, not a dev-only test dependency.)
 
@@ -123,7 +123,7 @@ runtime peer dependency here, not a dev-only test dependency.)
 parameters rather than reaching for the global `process.argv` and global
 `console`. That lets the test suite call `run` in-process with a fake
 console, capture `console.log` output, and even inject STDIN via a
-`console.test$` string — no child processes, no real I/O. The binary
+`console.test$` string: no child processes, no real I/O. The binary
 ([`ts/bin/jsonic`](../bin/jsonic)) is a two-line shim that supplies the real
 `process.argv` and `console`. Designing the core to be I/O-injectable is why
 the whole CLI can be unit-tested deterministically.
@@ -140,8 +140,8 @@ the whole CLI can be unit-tested deterministically.
 
 ## See also
 
-- [tutorial.md](tutorial.md) — zero to working result.
-- [guide.md](guide.md) — task recipes.
-- [reference.md](reference.md) — exact flags and contract.
+- [tutorial.md](tutorial.md). Zero to working result.
+- [guide.md](guide.md). Task recipes.
+- [reference.md](reference.md). Exact flags and contract.
 - The Go port: [../../go/doc/concepts.md](../../go/doc/concepts.md), whose
   "Differences from the TS version" section covers where the two diverge.

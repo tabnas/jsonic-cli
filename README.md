@@ -7,7 +7,7 @@
 [![tabnas standard](https://tabnas.github.io/status/badges/jsonic-cli-standard.svg)](https://tabnas.github.io/status/)
 <!-- /tabnas-badges -->
 
-Command-line interface for [`@tabnas/jsonic`](https://github.com/tabnas/jsonic) —
+Command-line interface for [`@tabnas/jsonic`](https://github.com/tabnas/jsonic),
 a JSON parser that isn't strict. Installs the `jsonic` command, which parses
 relaxed-JSON source (from arguments, files, or STDIN) and prints standard
 JSON.
@@ -34,16 +34,16 @@ jsonic a:1
 
 Four-quadrant [Diátaxis](https://diataxis.fr) docs, per implementation:
 
-**TypeScript** — [tutorial](ts/doc/tutorial.md) ·
+**TypeScript**: [tutorial](ts/doc/tutorial.md) ·
 [how-to guide](ts/doc/guide.md) · [reference](ts/doc/reference.md) ·
 [concepts](ts/doc/concepts.md)
 
-**Go** — [tutorial](go/doc/tutorial.md) · [how-to guide](go/doc/guide.md) ·
+**Go**: [tutorial](go/doc/tutorial.md) · [how-to guide](go/doc/guide.md) ·
 [reference](go/doc/reference.md) · [concepts](go/doc/concepts.md)
 
 Start with [`ts/README.md`](ts/README.md) for install and usage.
 
-> There is no railroad diagram here — this CLI has no grammar.
+> There is no railroad diagram here; this CLI has no grammar.
 > The ABNF / grammar-conversion CLI lives in
 > [`@tabnas/abnf`](https://github.com/tabnas/abnf) as the `tabnas-abnf`
 > command.

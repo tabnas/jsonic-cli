@@ -1,6 +1,6 @@
 # How-to guide: `jsonic` recipes
 
-Task-focused recipes for common jobs. Each is self-contained — skim for the
+Task-focused recipes for common jobs. Each is self-contained; skim for the
 one you need. For the exhaustive flag list see [reference.md](reference.md);
 for *why* it works this way see [concepts.md](concepts.md).
 
@@ -43,7 +43,7 @@ jsonic -n a:1
 }
 ```
 
-For a different indent — say four spaces — set `JSON.space` directly:
+For a different indent (say four spaces) set `JSON.space` directly:
 
 ```bash
 jsonic -o JSON.space=4 a:1
@@ -215,8 +215,8 @@ treated as source, not an error.)
 ## Verified examples (run by the test harness)
 
 The fragments below are executed by the doc-example test harness. They drive
-the CLI's own `run()` entry point — the same function the `jsonic` binary
-calls — with a captured console, so the asserted output is exactly what the
+the CLI's own `run()` entry point (the same function the `jsonic` binary
+calls) with a captured console, so the asserted output is exactly what the
 command prints. (The CLI has no library API beyond `run`; these blocks exist
 to verify the recipes above against real behaviour.)
 
@@ -224,7 +224,7 @@ to verify the recipes above against real behaviour.)
 const { run } = require('@tabnas/jsonic-cli')
 
 // Drive the CLI in-process and return its last printed line.
-// `test$` is the STDIN body: keep it a STRING — the empty string means
+// `test$` is the STDIN body: keep it a STRING: the empty string means
 // "nothing piped in". A non-string makes run() read the real process.stdin.
 async function jsonic(args, stdin) {
   const lines = []
