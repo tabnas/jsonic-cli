@@ -35,6 +35,14 @@ where a line says otherwise:
   plain JavaScript rather than tabnas code, it was measured directly
   under Node, and the entry says so.
 
+A later session, the one that repaired the seven review findings, DID
+run the canonical command: Node 22 strips the types off
+`ts/src/jsonic-cli.ts` directly, and a published `@tabnas/jsonic` sits in
+a sibling checkout's `node_modules`, so `run(argv, console)` could be
+driven in process over the shared fixtures (44 of 44 rows green) and over
+the inputs below. Every TypeScript column added by that session was
+measured that way, and says so.
+
 ## Exit code on failure
 
 | input | TypeScript | Go | Rust |
@@ -198,7 +206,11 @@ Worth separating out, because each looks like one:
   this one. Rust matches TypeScript, apart from the exit code recorded
   above.
 - **The prototype-poisoning keys.** `jsonic __proto__:1` prints `{}` in
-  all three. The engine's `util.deep` skips `__proto__`, `constructor`
+  all three, and so does `jsonic 'a:[{__proto__:1}]'` print
+  `{"a":[{}]}`: `util.deep` merges every index the overlay names, an
+  index past the end of the base included, so an APPENDED element
+  reaches the guarded loop too. Pinned by the three `__proto__` rows of
+  `test/spec/basic.tsv`, which all three runtimes run. The engine's `util.deep` skips `__proto__`, `constructor`
   and `prototype`, and `rs/src/merge.rs` is a port of that function
   rather than a call to `tabnas_jsonic::deep_merge`, which drops the
   guard when the base is not already a container. The module comment
@@ -220,6 +232,8 @@ canonical TypeScript prints.
 | `jsonic -o 'JSON.replacer=[b,a]' a:1,b:2` | `{"b":2,"a":1}` | `{"a":1,"b":2}` | `{"b":2,"a":1}` |
 | `jsonic -o 'JSON.space="2"' a:1` | two-space indent | indent of the character `2` | two-space indent |
 | `jsonic -o 'JSON.replacer="[a]"' a:1,b:2` | `{"a":1}` | `{}` | `{"a":1}` |
+| `jsonic 2:b,1:a` | `{"1":"a","2":"b"}` | `{"2":"b","1":"a"}` | `{"1":"a","2":"b"}` |
+| `jsonic a:1658206780088562.2` | `{"a":1658206780088562.2}` | `{"a":1.6582067800885622e+15}` | `{"a":1658206780088562.2}` |
 
 **Key order under a replacer.** `JSON.stringify` builds a PropertyList
 from the replacer array and then walks THAT, looking each key up, so the
@@ -234,6 +248,20 @@ meaning "no key survives". Go filters the object's own keys instead, so
 it agrees whenever the two orders happen to coincide, which every shared
 fixture row does. Pinned by `a_replacer_list_sets_the_key_order` in
 `rs/tests/stringify_test.rs`.
+
+**Array-index keys enumerate first.** A JavaScript object does not
+enumerate in insertion order alone: `[[OwnPropertyKeys]]` yields the
+keys that are canonical array indices first, in ascending numeric order,
+and the remaining string keys in the order they were created. Measured
+under Node against `ts/src/jsonic-cli.ts`: `jsonic 2:b,1:a` prints
+`{"1":"a","2":"b"}`, `jsonic b:1,10:x,9:y,a:2` prints
+`{"9":"y","10":"x","b":1,"a":2}`, and the bounds hold as
+`Object.keys` reports them, with `4294967294` sorting and `4294967295`,
+`01`, `00`, `-1`, `-0` and `1.5` staying put. Go walks its
+insertion-ordered entry list and prints the source order. This is why
+the case is pinned by `array_index_keys_enumerate_before_the_others` in
+`rs/tests/stringify_test.rs` rather than by a `test/spec/` row: every
+runtime runs that directory, and a row here would fail the Go suite.
 
 **A string option value is parsed twice.** `ts/src/jsonic-cli.ts` ends
 with `replacer = Jsonic(options.JSON.replacer)` and
@@ -255,12 +283,35 @@ and an exponent with NO leading zero below it. Measured under Node:
 TypeScript, pinned by the `1e-6`, `1e-7`, `1.2345e-8` and `5e-324` rows
 of `numbers_match_json_stringify`.
 
+The same `%g` picks exponential notation for a large number too, where
+JavaScript writes the digits out: measured under Node against
+`ts/src/jsonic-cli.ts`, `jsonic a:1658206780088562.2` prints
+`{"a":1658206780088562.2}` and Go prints `{"a":1.6582067800885622e+15}`.
+That value is also a shortest-form TIE, where two equally short digit
+strings are the same distance from the double and ECMAScript takes the
+one ending in an even digit. Rust's shortest formatter rounds away from
+zero, so the digits are taken from a fixed-precision render at the
+shortest length instead, the repair `csv/rs` and `xml/rs` already carry.
+Fuzzed against Node over 81,884 doubles with no mismatch; the earlier
+form missed 670 of them. Pinned by
+`numbers_at_a_shortest_form_tie_round_to_even`.
+
 A fourth, smaller one: Go cuts a string `space` with a BYTE slice
 (`v[:10]`), TypeScript with `substring(0, 10)` over UTF-16 code units.
 Rust counts UTF-16 code units, so
 `JSON.stringify({a:1}, null, "\u{1F600}".repeat(6))` indents with five
 astral characters in both TypeScript and Rust. Pinned by
 `a_string_space_is_cut_at_ten_utf16_units`.
+
+A cut that lands INSIDE an astral character sharpens that one. The tenth
+unit is then the first half of a surrogate pair, which JavaScript keeps
+and Node writes to a UTF-8 stream as U+FFFD. Measured under Node against
+`ts/src/jsonic-cli.ts` with a nine-character prefix and one astral
+character: TypeScript indents with the nine characters plus the bytes
+`ef bf bd`, Go emits the nine characters plus the single byte `f0`,
+which is not valid UTF-8 on its own, and Rust writes U+FFFD as
+TypeScript does. Pinned by
+`a_space_cut_through_an_astral_character_keeps_its_half`.
 
 ## What was compared, and how widely
 

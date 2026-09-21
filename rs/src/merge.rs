@@ -34,6 +34,11 @@ const DANGEROUS: [&str; 3] = ["__proto__", "constructor", "prototype"];
 /// `undefined` overlay leaves it alone, and a container overlay onto a
 /// base that is not a container of the same kind is copied into a fresh
 /// one, which is where the dangerous keys are dropped.
+///
+/// An index the base does not reach yet is not a special case: it merges
+/// onto the `undefined` that TypeScript reads there, so an element the
+/// overlay APPENDS passes through the same guarded loop as one it
+/// replaces.
 pub(crate) fn deep(base: Value, over: Value) -> Value {
     let base_kind = kind(&base);
     let over_kind = kind(&over);
@@ -60,12 +65,21 @@ pub(crate) fn deep(base: Value, over: Value) -> Value {
         (Kind::Array, Kind::Array) => {
             let mut items = into_items(base);
             for (at, value) in into_items(over).into_iter().enumerate() {
-                if at < items.len() {
-                    let previous = std::mem::replace(&mut items[at], Value::Undefined);
-                    items[at] = deep(previous, value);
+                // `base[k] = deep(base[k], over[k])` for EVERY index the
+                // overlay mentions, one past the end of the base
+                // included: `base[k]` reads as `undefined` there, and
+                // TypeScript still runs the merge, which copies a
+                // container overlay into a fresh container through the
+                // guarded loop. Taking the overlay element as it stands
+                // instead skipped that loop, so a dangerous key inside a
+                // newly appended object survived.
+                let previous = if at < items.len() {
+                    std::mem::replace(&mut items[at], Value::Undefined)
                 } else {
-                    items.push(value);
-                }
+                    items.push(Value::Undefined);
+                    Value::Undefined
+                };
+                items[at] = deep(previous, value);
             }
             Value::array(items)
         }
@@ -177,6 +191,42 @@ mod tests {
                 merged(&["a:{b:1}", &format!("a:{{{key}:1}}")]),
                 r#"{"a":{"b":1}}"#,
                 "merged {key}"
+            );
+        }
+    }
+
+    /// An APPENDED array element reaches the guarded loop too.
+    ///
+    /// TypeScript merges every index the overlay mentions, so an element
+    /// past the end of the base is merged into the `undefined` sitting
+    /// there and copied into a fresh container. Measured under Node
+    /// against `ts/src/jsonic-cli.ts`: `jsonic 'a:[{__proto__:1}]'`
+    /// prints `{"a":[{}]}`, and `jsonic '[1]' '[{__proto__:1},{__proto__:2}]'`
+    /// prints `[{},{}]`.
+    #[test]
+    fn the_dangerous_keys_are_dropped_from_an_appended_element() {
+        for key in DANGEROUS {
+            assert_eq!(
+                merged(&[&format!("a:[{{{key}:1}}]")]),
+                r#"{"a":[{}]}"#,
+                "fresh array, {key}"
+            );
+            assert_eq!(
+                merged(&[&format!("[{{{key}:1}}]")]),
+                "[{}]",
+                "top level array, {key}"
+            );
+            // Index 0 replaces an existing element and index 1 appends
+            // one: both must be guarded, which is what caught the defect.
+            assert_eq!(
+                merged(&["[1]", &format!("[{{{key}:1}},{{{key}:2}}]")]),
+                "[{},{}]",
+                "replaced and appended, {key}"
+            );
+            assert_eq!(
+                merged(&[&format!("a:[[{{{key}:1}}]]")]),
+                r#"{"a":[[{}]]}"#,
+                "nested array, {key}"
             );
         }
     }

@@ -22,7 +22,7 @@ mod common;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use common::{run, run_streams, run_with, test_plugins, value_def_plugin};
+use common::{argv, run, run_streams, run_with, test_plugins, value_def_plugin};
 
 /// A committed `--file` fixture, as an absolute path: an integration test
 /// runs from the crate root, and naming the file absolutely keeps the
@@ -407,4 +407,116 @@ fn a_failing_plugin_is_reported() {
     let out = run_with(&["-p", "boom", "a:1"], "", &extra);
     assert_eq!(out.code, 1);
     assert!(out.stderr.contains("no"), "stderr: {}", out.stderr);
+}
+
+/// A repeated `-p` reference installs its plugin ONCE, at the position of
+/// its FIRST occurrence.
+///
+/// TypeScript keeps the loaded plugins in an object keyed by the
+/// reference (`out[name] = require(name)`), so a duplicate collapses
+/// before `jsonic.use` runs at all. Measured under Node against
+/// `ts/src/jsonic-cli.ts` with a plugin that reports each install:
+/// `-p x -p x` reports one, and `-p x -p y -p x` reports `x` then `y`, so
+/// the position kept is the first occurrence's. A list of references
+/// installed the plugin twice here, which duplicates whatever it
+/// registers and fails outright for a plugin that refuses a second
+/// install.
+#[test]
+fn a_repeated_plugin_reference_installs_once() {
+    let installed: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+    let mut extra: BTreeMap<String, tabnas::Plugin> = BTreeMap::new();
+    for name in ["one", "two"] {
+        let log = std::sync::Arc::clone(&installed);
+        extra.insert(
+            name.to_string(),
+            tabnas::Plugin::new(name, move |_parser, _options| {
+                log.lock()
+                    .expect("the install log is not poisoned")
+                    .push(name.to_string());
+                Ok(())
+            }),
+        );
+    }
+    let record = || {
+        installed
+            .lock()
+            .expect("the install log is not poisoned")
+            .clone()
+    };
+    let clear = || {
+        installed
+            .lock()
+            .expect("the install log is not poisoned")
+            .clear()
+    };
+
+    let out = run_with(&["-p", "one", "-p", "one", "a:1"], "", &extra);
+    assert_eq!(out.code, 0, "stderr: {}", out.stderr);
+    assert_eq!(out.first(), r#"{"a":1}"#);
+    assert_eq!(record(), vec!["one".to_string()]);
+
+    clear();
+    let out = run_with(&["-p", "one", "-p", "two", "-p", "one", "a:1"], "", &extra);
+    assert_eq!(out.code, 0, "stderr: {}", out.stderr);
+    assert_eq!(record(), vec!["one".to_string(), "two".to_string()]);
+
+    // `-d` seeds the debug plugin under the same reference, so `-p debug`
+    // beside it is a duplicate too: one install, and one describe header.
+    let out = run(&["-d", "-p", "debug", "a:1"], "");
+    assert_eq!(out.code, 0, "stderr: {}", out.stderr);
+    assert_eq!(
+        out.lines
+            .iter()
+            .filter(|line| line.contains("=== PARSE ==="))
+            .count(),
+        1
+    );
+    assert_eq!(out.last(), r#"{"a":1}"#);
+}
+
+/// A standard input that fails to read is REPORTED, not turned into a
+/// bare nonzero exit code.
+///
+/// The failure used to reach `unwrap_or(1)`, which returned 1 with an
+/// EMPTY standard error, so a caller could not tell a failed read from a
+/// source that parsed to nothing. This covers a real pipe or device that
+/// errors mid-read as well as a library caller passing a fallible
+/// `Read`. The canonical command reports the same thing in the same
+/// shape: an erroring `process.stdin` rejects `run()` and `ts/bin/jsonic`
+/// prints `e.message` alone. Measured under Node with a `Readable` that
+/// destroys itself with `read EIO`, which printed `read EIO` on standard
+/// error and nothing on standard output.
+#[test]
+fn a_failing_stdin_is_reported() {
+    struct Broken;
+
+    impl std::io::Read for Broken {
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("read EIO"))
+        }
+    }
+
+    let out = tabnas_jsonic_cli::capture(&argv(&[]), &mut Broken, &Default::default());
+    assert_eq!(out.code, 1);
+    assert!(out.lines.is_empty(), "printed {:?}", out.lines);
+    assert!(out.stderr.contains("read EIO"), "stderr: {:?}", out.stderr);
+
+    let mut stdout: Vec<u8> = Vec::new();
+    let mut stderr: Vec<u8> = Vec::new();
+    let code = tabnas_jsonic_cli::run(&argv(&[]), &mut Broken, &mut stdout, &mut stderr);
+    assert_eq!(code, 1);
+    assert!(stdout.is_empty(), "printed {stdout:?}");
+    let stderr = String::from_utf8(stderr).expect("utf-8 stderr");
+    assert!(stderr.contains("read EIO"), "stderr: {stderr:?}");
+
+    // `-` asks for standard input explicitly, so it fails the same way.
+    let out = tabnas_jsonic_cli::capture(&argv(&["-", "a:1"]), &mut Broken, &Default::default());
+    assert_eq!(out.code, 1);
+    assert!(out.stderr.contains("read EIO"), "stderr: {:?}", out.stderr);
+
+    // A run with a positional source never reads standard input, so a
+    // broken stream is not its problem.
+    let out = tabnas_jsonic_cli::capture(&argv(&["a:1"]), &mut Broken, &Default::default());
+    assert_eq!(out.code, 0, "stderr: {}", out.stderr);
+    assert_eq!(out.first(), r#"{"a":1}"#);
 }

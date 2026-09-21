@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 
+use indexmap::IndexMap;
 use serde_json::{json, Value as Json};
 use tabnas::{Plugin, Tabnas, Value};
 
@@ -63,9 +64,27 @@ pub fn run_with_plugins(
     for (name, plugin) in extra {
         registry.insert(name.clone(), plugin.clone());
     }
-    // A write to a closed stdout is the caller's problem, not ours.
     let mut sink = WriteSink { out: stdout };
-    run_inner(argv, stdin, &mut sink, stderr, &registry).unwrap_or(1)
+    match run_inner(argv, stdin, &mut sink, stderr, &registry) {
+        Ok(code) => code,
+        Err(error) => report_io(stderr, &error),
+    }
+}
+
+/// An input or output failure that reached the top: say what it was, then
+/// exit nonzero.
+///
+/// Discarding it left a nonzero exit code with an EMPTY standard error,
+/// which is the one shape this command never uses for a failure, so a
+/// caller had no way to tell a failed read from a run that printed
+/// nothing. The canonical command reports the same thing and in the same
+/// shape: a standard input that errors rejects `run()`, and
+/// `ts/bin/jsonic` prints `e.message` alone, on one line.
+fn report_io(stderr: &mut dyn Write, error: &std::io::Error) -> i32 {
+    // A failed write to standard output cannot be reported on a stream
+    // that may be just as broken, so this last write is allowed to fail.
+    let _ = writeln!(stderr, "{error}");
+    1
 }
 
 /// What one captured run produced. The counterpart of the `lines` a Go
@@ -115,7 +134,10 @@ pub fn capture(
     }
     let mut sink = CaptureSink::default();
     let mut stderr: Vec<u8> = Vec::new();
-    let code = run_inner(argv, stdin, &mut sink, &mut stderr, &registry).unwrap_or(1);
+    let code = match run_inner(argv, stdin, &mut sink, &mut stderr, &registry) {
+        Ok(code) => code,
+        Err(error) => report_io(&mut stderr, &error),
+    };
     Captured {
         code,
         lines: sink.lines,
@@ -181,15 +203,32 @@ fn run_inner(
     // unknown one fails without side effects. `-d` adds the debug plugin
     // ahead of them, as the TypeScript CLI seeds `plugins.debug` before
     // merging `handle_plugins`.
-    let mut wanted: Vec<(String, Plugin)> = Vec::new();
+    //
+    // The collection is KEYED BY REFERENCE, which is what makes a repeated
+    // `-p` reference install once. TypeScript keeps its plugins in an
+    // object (`out[name] = require(name)`), so `-p x -p x` leaves one
+    // entry and `jsonic.use` runs once; a list would install the plugin
+    // twice, which duplicates whatever it registers. Measured under Node
+    // against `ts/src/jsonic-cli.ts`: a counting plugin passed twice
+    // reports one install, and `-p a -p b -p a` installs `a` before `b`,
+    // so the position kept is the FIRST occurrence's.
+    //
+    // The first occurrence's PLUGIN is kept with it. TypeScript's later
+    // assignment overwrites the value, but the module cache answers the
+    // same reference with the same module, so which one survives is not
+    // observable there. It is observable here for `-d -p debug`, where
+    // `-d`'s tracing plugin would be replaced by the registry's quiet
+    // one, and the canonical command still traces (`-d` also pushes
+    // `log=-1`, which no `-p` undoes).
+    let mut wanted: IndexMap<String, Plugin> = IndexMap::new();
     if args.debug {
-        wanted.push(("debug".to_string(), debug_plugin()));
+        wanted.insert("debug".to_string(), debug_plugin());
     }
     for name in &args.plugins {
         let Some(plugin) = lookup(registry, name) else {
             return fail(stderr, &format!("Plugin not found: {name}"));
         };
-        wanted.push((name.clone(), plugin.clone()));
+        wanted.entry(name.clone()).or_insert_with(|| plugin.clone());
     }
 
     let mut parser = match build_parser(&engine_options(&option_bag)) {
@@ -266,7 +305,15 @@ fn run_inner(
     // Standard input is read whenever there is no positional source, and
     // whenever `-` was given, exactly as the canonical command does.
     if args.sources.is_empty() || args.stdin {
-        let source = read_stdin(stdin)?;
+        // A pipe or device that fails mid-read is reported, not
+        // discarded: the exit code alone, with nothing on standard error,
+        // leaves the caller unable to tell a failed read from a source
+        // that parsed to nothing. The canonical command prints the
+        // error's message and nothing else.
+        let source = match read_stdin(stdin) {
+            Ok(text) => text,
+            Err(error) => return fail(stderr, &error.to_string()),
+        };
         match parse_source(&parser, &source, &meta, &traced, log)? {
             Ok(value) => data = deep(data, value),
             Err(message) => return fail(stderr, &message),

@@ -237,3 +237,122 @@ fn a_string_space_is_cut_at_ten_utf16_units() {
         format!("{{\n{}\"a\": 1\n}}", "\u{1F600}".repeat(5))
     );
 }
+
+/// A JavaScript object does not enumerate in insertion order alone: its
+/// ARRAY-INDEX keys come first, in ascending numeric order, and the rest
+/// follow in the order they were created. `JSON.stringify` walks that
+/// order, so the printed key order does too.
+///
+/// Measured under Node against `ts/src/jsonic-cli.ts`, one command per
+/// row below. The boundary cases were measured with `Object.keys` as
+/// well:
+///
+/// ```text
+/// Object.keys({'2':2,'1':1,'0':0,'01':0,'-1':0,'1.5':0,' 1':0,
+///              '4294967294':0,'4294967295':0,'-0':0,'00':0,'a':0})
+/// -> ['0','1','2','4294967294','01','-1','1.5',' 1','4294967295',
+///     '-0','00','a']
+/// ```
+///
+/// So `4294967294` is the largest array index, `4294967295` is not one
+/// (it is reserved as an array's length), and a leading zero or a sign
+/// makes the string non-canonical and therefore an ordinary key.
+///
+/// This case is NOT in `test/spec/`: the Go port keeps the source order
+/// here (`go/cli/stringify.go` walks the insertion-ordered entry list),
+/// so a shared row would break the Go suite. It is recorded against Go in
+/// `DIVERGENCE.md`.
+#[test]
+fn array_index_keys_enumerate_before_the_others() {
+    for (source, want) in [
+        ("2:b,1:a", r#"{"1":"a","2":"b"}"#),
+        // Ascending NUMERIC order, not lexicographic: 9 before 10.
+        ("b:1,10:x,9:y,a:2", r#"{"9":"y","10":"x","b":1,"a":2}"#),
+        // The upper bound, measured: 4294967294 sorts, 4294967295 does not.
+        (
+            "4294967295:a,4294967294:b",
+            r#"{"4294967294":"b","4294967295":"a"}"#,
+        ),
+        // A leading zero is not a canonical numeric string.
+        ("01:a,1:b", r#"{"1":"b","01":"a"}"#),
+        ("00:a,0:b", r#"{"0":"b","00":"a"}"#),
+        // Neither is a sign, on either zero.
+        ("-1:a,0:b", r#"{"0":"b","-1":"a"}"#),
+        ("-0:a,0:b", r#"{"0":"b","-0":"a"}"#),
+        // Nor a fraction, nor surrounding space.
+        ("1.5:a,1:b", r#"{"1":"b","1.5":"a"}"#),
+        // Every depth, not just the top level.
+        (
+            "2:b,1:a,x:{5:q,0:p}",
+            r#"{"1":"a","2":"b","x":{"0":"p","5":"q"}}"#,
+        ),
+        // Non-index keys keep the order the source wrote them in.
+        ("z:1,a:2,m:{y:1,b:2}", r#"{"z":1,"a":2,"m":{"y":1,"b":2}}"#),
+    ] {
+        assert_eq!(out(source), want, "for {source}");
+    }
+}
+
+/// A `space` cut THROUGH an astral character keeps the half JavaScript
+/// keeps, spelt U+FFFD.
+///
+/// `substring(0, 10)` counts UTF-16 code units, so a string whose tenth
+/// unit is the first half of a surrogate pair leaves JavaScript holding
+/// that half on its own. A Rust string cannot hold half a pair, and
+/// dropping it is not the same answer: Node writes an unpaired surrogate
+/// to a UTF-8 stream as U+FFFD. Measured under Node against
+/// `ts/src/jsonic-cli.ts`, whose indent for the command below is the nine
+/// ASCII characters followed by the bytes `ef bf bd`.
+///
+/// This case is NOT in `test/spec/`: the Go port cuts the string with a
+/// BYTE slice, so it emits the first byte of the astral character and
+/// nothing else, and a shared row would break the Go suite.
+#[test]
+fn a_space_cut_through_an_astral_character_keeps_its_half() {
+    assert_eq!(
+        run(&["-o", "JSON.space=\"abcdefghi\u{1F600}\"", "a:1"], "").first(),
+        "{\nabcdefghi\u{FFFD}\"a\": 1\n}"
+    );
+    // One unit earlier the character fits whole, and nothing is added.
+    assert_eq!(
+        run(&["-o", "JSON.space=\"abcdefgh\u{1F600}\"", "a:1"], "").first(),
+        "{\nabcdefgh\u{1F600}\"a\": 1\n}"
+    );
+    // A cut that lands on a character boundary adds no replacement.
+    assert_eq!(
+        run(&["-o", "JSON.space=\"abcdefghij\u{1F600}\"", "a:1"], "").first(),
+        "{\nabcdefghij\"a\": 1\n}"
+    );
+}
+
+/// Where two shortest digit strings are equally close to the value,
+/// ECMAScript takes the one ending in an EVEN digit.
+///
+/// Rust's shortest formatter rounds such a midpoint away from zero, so
+/// deriving the answer from `format!("{number:e}")` alone printed a
+/// different last digit. Each row was measured under Node against
+/// `ts/src/jsonic-cli.ts` by running `jsonic a:<source>`, and the whole
+/// formatter was fuzzed against Node over 81,884 doubles with no
+/// mismatch.
+///
+/// These are NOT in `test/spec/`: the Go port prints these values in
+/// exponential notation (`1.6582067800885622e+15`), which is the number
+/// formatting already recorded against Go in `DIVERGENCE.md`, so a shared
+/// row would break the Go suite.
+#[test]
+fn numbers_at_a_shortest_form_tie_round_to_even() {
+    for (source, want) in [
+        ("1658206780088562.2", "1658206780088562.2"),
+        ("165793407361858.12", "165793407361858.12"),
+        ("-1149636667324797.2", "-1149636667324797.2"),
+        ("34461792646535.312", "34461792646535.312"),
+        ("213751243550068.62", "213751243550068.62"),
+        ("-264310078315752.62", "-264310078315752.62"),
+    ] {
+        assert_eq!(
+            out(&format!("a:{source}")),
+            format!("{{\"a\":{want}}}"),
+            "for {source}"
+        );
+    }
+}

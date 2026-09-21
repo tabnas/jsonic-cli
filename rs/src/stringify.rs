@@ -8,7 +8,7 @@ contributors, MIT License */
 //! canonical command prints for a value, this prints for the same value,
 //! key order and number formatting included.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use serde_json::{Map, Value as Json};
 use tabnas::Value;
@@ -101,21 +101,62 @@ pub(crate) fn parse_space(value: Option<&Json>) -> String {
 /// `JSON.stringify` slices a string `space` with `substring(0, 10)`,
 /// which counts UTF-16 code units; a Rust `str` counts characters, and an
 /// astral character is two units, so `chars().take(10)` would keep too
-/// much. A character straddling the boundary is dropped whole: JavaScript
-/// would keep half of it, and half of a surrogate pair is not a value a
-/// Rust string can hold.
+/// much.
+///
+/// A character STRADDLING the boundary leaves JavaScript holding the high
+/// surrogate on its own. A Rust string cannot hold half a surrogate pair,
+/// and dropping it is not equivalent: Node writes an unpaired surrogate to
+/// a UTF-8 stream as U+FFFD, so the canonical command's indent has a
+/// replacement character where the gap is. Measured under Node with
+/// `-o 'JSON.space="abcdefghi<astral>"'`, whose indent is the nine ASCII
+/// characters plus the three bytes `ef bf bd`. U+FFFD is therefore what
+/// the truncated half becomes here, rather than nothing.
 fn truncate_utf16(text: &str, units: usize) -> String {
     let mut out = String::new();
     let mut used = 0;
     for ch in text.chars() {
         let width = ch.len_utf16();
         if units < used + width {
+            if used < units {
+                out.push(char::REPLACEMENT_CHARACTER);
+            }
             break;
         }
         out.push(ch);
         used += width;
     }
     out
+}
+
+/// The numeric value of `key` when it is a canonical ARRAY INDEX, which
+/// is what a JavaScript object enumerates ahead of its other keys.
+///
+/// The specification wants an integer index (a canonical numeric string
+/// whose value is a non-negative integer) below `2^32 - 1`, that last
+/// value being reserved as an array's length. Three consequences are easy
+/// to get wrong, and all three were measured under Node with
+/// `Object.keys`:
+///
+/// - `"4294967294"` is an index and `"4294967295"` is not, so the upper
+///   bound excludes `u32::MAX`.
+/// - `"01"` is not an index, because `ToString(1)` is `"1"`: a leading
+///   zero makes the string non-canonical. Nor is `"00"` or `"0.0"`.
+/// - `"-1"` and `"-0"` are not indices either, so no sign is accepted.
+fn array_index(key: &str) -> Option<u32> {
+    let bytes = key.as_bytes();
+    // The largest index, 4294967294, has ten digits, so an eleventh digit
+    // puts the key out of range whatever it says.
+    if bytes.is_empty() || 10 < bytes.len() {
+        return None;
+    }
+    if !bytes.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    if 1 < bytes.len() && bytes[0] == b'0' {
+        return None;
+    }
+    let value: u64 = key.parse().ok()?;
+    (value < u32::MAX as u64).then_some(value as u32)
 }
 
 /// A replacer entry as the string key it filters by, or `None` when
@@ -173,7 +214,20 @@ fn write_object<'a>(
     space: &str,
     indent: &str,
 ) {
-    let entries: Vec<(&String, &Value)> = entries.collect();
+    let mut entries: Vec<(&String, &Value)> = entries.collect();
+
+    // A JavaScript object does NOT enumerate in insertion order alone.
+    // `[[OwnPropertyKeys]]` yields the ARRAY-INDEX keys first, in
+    // ascending numeric order, and only then the remaining string keys in
+    // the order they were created. So the source `2:b,1:a` prints
+    // `{"1":"a","2":"b"}` under Node while the engine's `IndexMap` holds
+    // `2` before `1`. Restoring that order here is what keeps the printed
+    // key order the canonical command's; see [`array_index`] for which
+    // keys count.
+    entries.sort_by_key(|(key, _)| match array_index(key) {
+        Some(index) => (0u8, index),
+        None => (1u8, 0),
+    });
 
     // With a replacer list, `JSON.stringify` walks the PropertyList and
     // looks each key up, so the OUTPUT order is the replacer's order and
@@ -181,17 +235,29 @@ fn write_object<'a>(
     // `{"b":2,"a":1}`, measured under Node. Without one the object's own
     // order stands. Either way a key whose value is `undefined` is
     // omitted, as it is in JavaScript.
+    //
+    // The lookup is KEYED, and built once per object. Scanning the entry
+    // list for each replacer name instead makes serializing an object
+    // with `n` keys through a replacer naming `n` of them cost `n^2`
+    // comparisons, and both the object and `JSON.replacer` come from the
+    // command line, so that is untrusted input deciding how much work the
+    // command does.
     let kept: Vec<(&String, &Value)> = match replacer {
-        Some(keys) => keys
-            .iter()
-            .filter_map(|key| {
-                entries
-                    .iter()
-                    .find(|(name, _)| *name == key)
-                    .copied()
-                    .filter(|(_, value)| !value.is_undefined())
-            })
-            .collect(),
+        Some(keys) => {
+            let index: HashMap<&str, &Value> = entries
+                .iter()
+                .map(|(key, value)| (key.as_str(), *value))
+                .collect();
+            keys.iter()
+                .filter_map(|key| {
+                    index
+                        .get(key.as_str())
+                        .copied()
+                        .filter(|value| !value.is_undefined())
+                        .map(|value| (key, value))
+                })
+                .collect()
+        }
         None => entries
             .into_iter()
             .filter(|(_, value)| !value.is_undefined())
@@ -276,18 +342,41 @@ pub(crate) fn format_number(number: f64) -> String {
 
 /// ECMAScript `Number::toString` for a finite, positive number.
 ///
-/// The shortest round-trippable digits come from Rust's `{:e}`, which uses
-/// the same shortest-representation algorithm as `{}` but states the
-/// decimal exponent instead of laying the digits out. With the digit
-/// string `s` (length `k`) and the exponent `n` such that the value is
-/// `0.s * 10^n`, the ECMAScript rules choose between fixed and exponential
-/// notation; Rust's own `{}` never chooses exponential, which is why this
-/// cannot just be `format!("{number}")`.
+/// The specification wants the SHORTEST digit string `s` that reads back
+/// as `number` (length `k`) and the exponent `n` placing the decimal point,
+/// then chooses between fixed and exponential notation from those two.
+/// Rust's own `{}` never chooses exponential, which is why this cannot
+/// just be `format!("{number}")`.
+///
+/// Rust's `{:e}` gives digits of exactly that shortest length, but not
+/// always the same digits: where two `k`-digit strings are equally close
+/// to `number`, ECMAScript takes the one ending in an EVEN digit and
+/// Rust's shortest formatter rounds away from zero. The double from
+/// `a:1658206780088562.2` is such a midpoint, and deriving the answer from
+/// `{:e}` alone printed `1658206780088562.3` where Node prints
+/// `1658206780088562.2`.
+///
+/// So `k` comes from `{:e}` and the digits come from asking for exactly
+/// that many with `{:.*e}`, whose fixed-precision form is exactly rounded.
+/// The same repair is in `csv/rs`'s `js_number_to_string` and in
+/// `xml/rs`; this is a port of it. Fuzzed against Node over 81,884
+/// doubles (random bit patterns, decimal-scaled values, midpoint-prone
+/// halves, powers of ten, subnormals and the extremes) with no mismatch;
+/// the `{:e}`-only form missed 670 of them.
 fn positive_to_string(number: f64) -> String {
-    let scientific = format!("{number:e}");
-    let (mantissa, exponent) = scientific
+    let shortest = format!("{number:e}");
+    let shortest_k = shortest
+        .split_once('e')
+        .map(|(mantissa, _)| mantissa.chars().filter(char::is_ascii_digit).count())
+        .expect("Rust's {:e} always writes an exponent");
+
+    let exponential = format!("{:.*e}", shortest_k - 1, number);
+    let (mantissa, exponent) = exponential
         .split_once('e')
         .expect("Rust's {:e} always writes an exponent");
+    // Rounding to `k` digits can leave trailing zeros, and a carry can
+    // leave one digit too many; dropping them keeps `s` shortest, which
+    // is what `k` means.
     let digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
     let digits = digits.trim_end_matches('0');
     let digits = if digits.is_empty() { "0" } else { digits };
@@ -340,6 +429,8 @@ fn write_string(out: &mut String, text: &str) {
 
 #[cfg(test)]
 mod tests {
+    use indexmap::IndexMap;
+
     use super::*;
 
     #[test]
@@ -362,6 +453,77 @@ mod tests {
         ] {
             assert_eq!(format_number(number), text, "for {number}");
         }
+    }
+
+    /// Serializing through a replacer must stay near linear in the
+    /// number of keys.
+    ///
+    /// Looking each replacer name up by scanning the object's entry list
+    /// costs `n` comparisons per name, so an object with `n` keys and a
+    /// replacer naming all of them cost `n^2`. Both sides are
+    /// user-controlled (`-o JSON.replacer=[...]` and the source), which is
+    /// what makes it the untrusted-input concern `../AGENTS.md` sets out
+    /// rather than a matter of taste.
+    ///
+    /// The check is machine-INDEPENDENT: it multiplies the key count by
+    /// `GROWTH` and compares the two timings from the SAME run on the
+    /// SAME machine, so a slow box cannot make it flaky. Linear work
+    /// grows by `GROWTH`; quadratic work grows by `GROWTH * GROWTH`, and
+    /// the budget sits between the two. There is deliberately no
+    /// wall-clock figure.
+    #[test]
+    fn a_replacer_lookup_stays_near_linear() {
+        const KEYS: usize = 2_000;
+        const GROWTH: usize = 4;
+        // Halfway between linear (4x) and quadratic (16x), on a log
+        // scale, leaving room for allocation noise on either side.
+        const BUDGET: f64 = 8.0;
+
+        // Warm the paths so the comparison is steady state.
+        replacer_nanos(KEYS / 8);
+
+        let small = replacer_nanos(KEYS);
+        let large = replacer_nanos(KEYS * GROWTH);
+
+        // Guard the baseline before dividing by it: a zero measurement
+        // makes every ratio vacuously true, which is a green test
+        // asserting nothing.
+        assert!(
+            0 < small,
+            "serializing {KEYS} keys measured as zero elapsed time: this is \
+             testing the clock, not the code"
+        );
+
+        let ratio = large as f64 / small as f64;
+        eprintln!(
+            "replacer lookup: {KEYS} keys={small}ns, {} keys={large}ns, ratio={ratio:.2}x",
+            KEYS * GROWTH
+        );
+        assert!(
+            ratio < BUDGET,
+            "serializing {GROWTH} times as many keys through a replacer took {ratio:.1}x \
+             as long (want under {BUDGET}x, linear is about {GROWTH}x). The replacer \
+             lookup is scanning the entry list per name again, which is quadratic in \
+             the key count and reachable from the command line."
+        );
+    }
+
+    /// Nanoseconds spent serializing an object of `keys` keys through a
+    /// replacer that names every one of them.
+    fn replacer_nanos(keys: usize) -> u128 {
+        let names: Vec<String> = (0..keys).map(|at| format!("k{at:07}")).collect();
+        let entries: IndexMap<String, Value> = names
+            .iter()
+            .enumerate()
+            .map(|(at, name)| (name.clone(), Value::Number(at as f64)))
+            .collect();
+        let value = Value::object(entries);
+
+        let started = std::time::Instant::now();
+        let out = stringify(&value, Some(&names), "");
+        let elapsed = started.elapsed().as_nanos();
+        assert!(out.len() > keys, "the whole object was serialized");
+        elapsed
     }
 
     #[test]

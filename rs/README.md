@@ -162,12 +162,15 @@ Whatever the canonical command prints for a value, this prints for the
 same value. The serializer is a port of JavaScript's `JSON.stringify`,
 down to the details that differ from Rust's own formatting:
 
-- **Key order is source order.** The engine's object keeps every key
-  where it arrived, which is how a JavaScript object enumerates, so the
-  keys come out unsorted.
+- **Key order is JavaScript's enumeration order.** A key spelt as a
+  canonical array index (`0` through `4294967294`) comes first, in
+  ascending numeric order, and every other key keeps the position the
+  source gave it. So `2:b,1:a` prints `{"1":"a","2":"b"}` while
+  `z:1,a:2` prints `{"z":1,"a":2}`.
 - **Numbers follow `Number::toString`.** Fixed notation up to 1e21 and
   down to 1e-6, exponential outside that range, and shortest
-  round-trippable digits throughout. Rust's own formatting never chooses
+  round-trippable digits throughout, with a tie between two equally short
+  forms settled on the even digit. Rust's own formatting never chooses
   exponential, so `1e21` would print as twenty-two digits without this.
 - **Non-finite numbers print as `null`**, and both zeroes print as `0`.
 - `-o JSON.space=<n>` clamps to ten, `-o JSON.space="<text>"` indents
