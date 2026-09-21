@@ -1,21 +1,23 @@
-# Build, test and publish both the TypeScript (ts/) and Go (go/)
-# implementations of the jsonic CLI. ts/ is canonical; go/ tracks it.
+# Build, test and publish the TypeScript (ts/), Go (go/) and Rust (rs/)
+# implementations of the jsonic CLI. ts/ is canonical; go/ and rs/ track
+# it.
 #
 # Local Go build/test resolve the unpublished @tabnas siblings (jsonic,
 # parser, json, debug) via the repo-set go.work; the TS side resolves them
-# via node_modules symlinks (admin/scripts/link.sh).
+# via node_modules symlinks (admin/scripts/link.sh); the Rust side resolves
+# them as path dependencies on sibling checkouts (rs/Cargo.toml).
 
-.PHONY: all build test clean build-ts build-go test-ts test-go \
-        clean-ts clean-go publish-ts publish-go tags-go reset \
+.PHONY: all build test clean build-ts build-go build-rs test-ts test-go test-rs \
+        clean-ts clean-go clean-rs publish-ts publish-go version-rs tags-go reset \
         prose prose-counts
 
 all: build test
 
-build: build-ts build-go
+build: build-ts build-go build-rs
 
-test: test-ts test-go
+test: test-ts test-go test-rs
 
-clean: clean-ts clean-go
+clean: clean-ts clean-go clean-rs
 
 # --- TypeScript (package in ts/) ---
 build-ts:
@@ -54,6 +56,33 @@ publish-go: test-go
 	git push origin main go/v$(V)
 	@command -v gh >/dev/null 2>&1 && gh release create go/v$(V) --title "go/v$(V)" --notes "Go module release v$(V)" || true
 
+# --- Rust (crate in rs/) ---
+build-rs:
+	cd rs && cargo build --all-targets
+
+# `--all-targets` does NOT include doctests -- cargo documents the
+# selector as "Test all targets (does not include doctests)" -- and every
+# `rust` fence in rs/README.md is one, so both runs are needed.
+test-rs:
+	cd rs && cargo test --all-targets && cargo test --doc
+	cd rs && cargo clippy --all-targets --all-features -- -D warnings
+
+clean-rs:
+	cd rs && cargo clean
+
+# Set the Rust crate version: make version-rs V=x.y.z
+#
+# Bumps BOTH Rust version sites, plus the crate's own entry in
+# rs/Cargo.lock, which rs/tests/version_test.rs holds to the manifest.
+# The TypeScript and Go sites belong to the release orchestrator; this
+# target does not touch them, and the version tests fail if they drift.
+version-rs:
+	@test -n "$(V)" || (echo "Usage: make version-rs V=x.y.z" && exit 1)
+	sed -i.bak 's/^version = ".*"/version = "$(V)"/' rs/Cargo.toml
+	sed -i.bak 's/^pub const VERSION: &str = ".*";/pub const VERSION: \&str = "$(V)";/' rs/src/lib.rs
+	rm -f rs/Cargo.toml.bak rs/src/lib.rs.bak
+	cd rs && cargo metadata --format-version 1 --offline >/dev/null
+
 # List published Go module tags, newest first.
 tags-go:
 	git tag -l 'go/v*' --sort=-version:refname
@@ -61,6 +90,7 @@ tags-go:
 reset:
 	cd ts && npm run reset
 	cd go && go clean -cache && go build ./... && go test -v ./...
+	cd rs && cargo clean && cargo test --all-targets && cargo test --doc
 
 # The prose gate (see docs/STYLE-GUIDE.md). Vale over the reader-facing
 # pages, at the levels set in .vale.ini, on the same file list

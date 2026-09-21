@@ -29,6 +29,7 @@ jsonic a:1
 |---|---|
 | [`ts/`](ts/) | TypeScript / JavaScript implementation (`@tabnas/jsonic-cli`), the `jsonic` command. **Canonical.** |
 | [`go/`](go/) | Go port (module `github.com/tabnas/jsonic-cli/go`, command `cmd/jsonic`). Tracks the TS behaviour. |
+| [`rs/`](rs/) | Rust port (crate `tabnas-jsonic-cli`, binary `jsonic`). Tracks the TS behaviour. |
 
 ## Documentation
 
@@ -41,7 +42,13 @@ Four-quadrant [Diátaxis](https://diataxis.fr) docs, per implementation:
 **Go**: [tutorial](go/doc/tutorial.md) · [how-to guide](go/doc/guide.md) ·
 [reference](go/doc/reference.md) · [concepts](go/doc/concepts.md)
 
-Start with [`ts/README.md`](ts/README.md) for install and usage.
+**Rust**: [`rs/README.md`](rs/README.md), which covers the command, the
+library, the compiled-in plugin registry and the output contract.
+
+Start with [`ts/README.md`](ts/README.md) for install and usage. Where a
+port produces a different result for the same input, it is recorded in
+[`DIVERGENCE.md`](DIVERGENCE.md) and, where a fixture cell can express
+it, in `test/divergent.tsv`.
 
 > There is no railroad diagram here; this CLI has no grammar.
 > The ABNF / grammar-conversion CLI lives in

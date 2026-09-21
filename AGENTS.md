@@ -16,13 +16,19 @@ counterpart to the strict-JSON `tabnas-json` CLI that ships inside the
 `@tabnas/json` package.
 
 ts/ is canonical; a **Go port** in `go/` (the `jsonic` command, module
-`github.com/tabnas/jsonic-cli/go`) tracks it. There is no grammar here and
-no railroad diagram; the TS↔Go contract is the **CLI behavior** — same
-flags, same stdout for the same inputs. It is pinned by the shared
-`test/spec/*.tsv` fixtures, one row per argv (see
+`github.com/tabnas/jsonic-cli/go`) and a **Rust port** in `rs/` (the
+`jsonic` binary, crate `tabnas-jsonic-cli`) track it. There is no grammar
+here and no railroad diagram; the contract between the three is the **CLI
+behavior** — same flags, same stdout for the same inputs. It is pinned by
+the shared `test/spec/*.tsv` fixtures, one row per argv (see
 [`test/AGENTS.md`](test/AGENTS.md)), with the plugin-loading and
 filesystem cases left in the in-language suites. The
-repo was created on 2026-06-16; the Go port was added on 2026-06-18.
+repo was created on 2026-06-16; the Go port was added on 2026-06-18, and
+the Rust port on 2026-09-21.
+
+Where a port produces a different result for the same input it is
+recorded in [`DIVERGENCE.md`](DIVERGENCE.md) and, where a fixture cell
+can express it, in `test/divergent.tsv`, which `rs/tests/` runs.
 
 > The ABNF / grammar-conversion CLI is **not here.** It lives in the
 > [`abnf`](https://github.com/tabnas/abnf) repo as the `tabnas-abnf` command
@@ -55,11 +61,18 @@ repo was created on 2026-06-16; the Go port was added on 2026-06-18.
 | `go/cli/parity_test.go` | `TestSpec` — globs and runs the shared `test/spec/*.tsv`. |
 | `go/cli/testdata/foo.jsonic`, `bar.jsonic` | Go `--file` fixtures (same contents as the TS ones). |
 | [`go/doc/`](go/doc/) | Diátaxis docs for the port. |
+| [`rs/`](rs/) | The Rust port (crate `tabnas-jsonic-cli`, library `tabnas_jsonic_cli`, binary `jsonic`). See [`rs/AGENTS.md`](rs/AGENTS.md). |
+| [`rs/src/cli.rs`](rs/src/cli.rs) | `run` / `run_with_plugins` / `capture`: the port of `run()`. The other modules are `args.rs`, `merge.rs`, `stringify.rs`, `registry.rs` and `help.rs`. |
+| [`rs/src/bin/jsonic.rs`](rs/src/bin/jsonic.rs) | Thin entry: `std::env::args`, a terminal check on STDIN, `std::process::exit`. |
+| [`rs/README.md`](rs/README.md) | Reader-facing docs for the port. Gated prose, and every `rust` fence is a doctest. |
+| [`ci/rust/run.sh`](ci/rust/run.sh) | The Rust gate: fmt, build, tests, doctests, clippy, and a lockfile comparison. |
+| [`DIVERGENCE.md`](DIVERGENCE.md) | Where a port differs from ts/, with the measurements behind each claim. |
+| `test/divergent.tsv` | The executable half of that record, run by `rs/tests/divergence_test.rs`. |
 
 There is **no `ts/doc/grammar.*` and no railroad diagram** — there is no
 grammar.
 
-> **Go plugin loading differs from TS.** The TS CLI loads `-p`/`--plugin`
+> **Go and Rust plugin loading differ from TS.** The TS CLI loads `-p`/`--plugin`
 > modules by `require(<reference>)`; Go cannot load a module by name at
 > runtime, so the Go CLI resolves plugins from a compiled-in registry
 > (`go/cli/registry.go`). The standard binary pre-registers the three
@@ -67,7 +80,10 @@ grammar.
 > and custom binaries add more with `cli.RegisterPlugin` before `cli.Run`;
 > the plugin tests inject the four fixture plugins as native functions.
 > The `-d`/`--debug` flag uses the first-party `@tabnas/debug` Go plugin
-> (`debug.Debug` + `debug.Describe`).
+> (`debug.Debug` + `debug.Describe`). Rust makes the same adaptation in
+> `rs/src/registry.rs`, with `tabnas_jsonic_cli::register_plugin` in
+> place of `cli.RegisterPlugin` and `tabnas_debug::describe` in place of
+> `debug.Describe`.
 
 ## The tabnas engine dependency
 
@@ -177,8 +193,11 @@ contract above, and it is covered like this:
 | STDIN alone, `-` alias, `-` plus arguments, no source at all | `test/spec/stdin.tsv` |
 | Empty/malformed `-o`, empty `-f`, value-less trailing flag | `test/spec/bad-args.tsv` |
 | `-h` / `--help` | `test/spec/help.tsv` |
-| `--file` (real filesystem), the four plugin export shapes, unresolvable `-p`, `-d` trace tail | `ts/test/cli.test.js` and `go/cli/run_test.go` (each in its own idiom) |
-| Registry-resolved built-in plugins, `RegisterPlugin`, exit codes | `go/cli/run_test.go` |
+| `--file` (real filesystem), the four plugin export shapes, unresolvable `-p`, `-d` trace tail | `ts/test/cli.test.js`, `go/cli/run_test.go` and `rs/tests/cli_test.rs` (each in its own idiom) |
+| Registry-resolved built-in plugins, `RegisterPlugin`, exit codes | `go/cli/run_test.go` and `rs/tests/cli_test.rs` |
+| `JSON.stringify` parity (numbers, escaping, key order, replacer, space), measured against Node | `rs/tests/stringify_test.rs` |
+| Untrusted input: deep nesting, long input, unterminated constructs, control characters, non-UTF-8 bytes | `rs/tests/untrusted_test.rs` |
+| The recorded divergences, and that a fixed one goes red | `rs/tests/divergence_test.rs` over `test/divergent.tsv` |
 | The `ts/doc/guide.md` "Verified examples" block | `ts/test/doc-examples.test.ts` |
 
 Anything expressible as argv (+ stdin) → first printed line belongs in
@@ -197,8 +216,18 @@ From the repo root, `make build` (= `build-ts` + `build-go`) and
   npm test               # node --enable-source-maps --test 'test/**/*.test.js' 'test/**/*.test.ts'
   cd ../go
   go build ./... && go test ./...
+  cd ../rs
+  cargo test --all-targets && cargo test --doc
+  cargo clippy --all-targets --all-features -- -D warnings
 )
 ```
+
+The Rust crate takes the engine, both grammars, the debug plugin and the
+fixture runner as **path dependencies on sibling checkouts**
+(`../../parser/rs` and friends), so the sibling repos have to be cloned
+beside this one. `bash ci/rust/run.sh` is the whole Rust gate, fmt and
+the lockfile comparison included, and it restores `Cargo.lock` on exit so
+a run leaves the tree as it found it.
 
 The key difference from the grammar repos: **`build` compiles `src` only.**
 The tests are **committed plain `.js`** in `test/` (plus the one shared
@@ -209,7 +238,9 @@ are executed by `node --test` — they are not compiled, so there is **no
 `clean && npm i && build && test` cycle.
 
 The repo-root [`Makefile`](Makefile) also carries the Go targets
-(`build-go`, `test-go`, `clean-go`, `publish-go`, `tags-go`). `make clean`
+(`build-go`, `test-go`, `clean-go`, `publish-go`, `tags-go`) and the Rust
+ones (`build-rs`, `test-rs`, `clean-rs`, `version-rs`), all wired into
+`build`, `test` and `clean`. `make clean`
 is a direct `rm -rf ts/dist ts/dist-test` plus `go clean` (it does *not*
 run the npm `clean` script, which would also wipe `node_modules` and the
 lockfile). `make publish-ts` runs the tests then `npm publish --access
@@ -241,6 +272,11 @@ Note CI builds the full sibling set even though this repo only *imports*
 jsonic + debug + (type-only) parser, because those are jsonic's own
 transitive build dependencies.
 
+The Rust gate is **staged, not active**: `ci/workflows/rust.yml` runs
+`ci/rust/run.sh` on the MSRV toolchain with the sibling checkouts its
+path dependencies need, and a maintainer promotes it under admin
+`DECISIONS.md` ADR-8. A session never writes `.github/workflows/*`.
+
 ## Releasing
 
 Publishing is **dispatch-driven and runs in CI**, never locally:
@@ -264,9 +300,13 @@ accepts the publish. Pushing a tag by hand is the orchestrator's path
 
 The steps, in order:
 
-1. Bump all **three** version sites together — `ts/package.json`, `VERSION`
-   in `ts/src/jsonic-cli.ts` and `const VERSION` in `go/cmd/jsonic/main.go`.
-   Drift is caught by `ts/test/version.test.js`.
+1. Bump all **five** version sites together — `ts/package.json`, `VERSION`
+   in `ts/src/jsonic-cli.ts`, `const VERSION` in `go/cmd/jsonic/main.go`,
+   `version` in `rs/Cargo.toml` (and so this crate's entry in
+   `rs/Cargo.lock`) and `VERSION` in `rs/src/lib.rs`. Drift is caught by
+   `ts/test/version.test.js`, `go/cmd/jsonic/version_test.go` and
+   `rs/tests/version_test.rs`. `make version-rs V=x.y.z` moves the two
+   Rust sites and refreshes the lock.
 2. Verify against the **published** dependencies rather than your checkout.
    The release runner installs fresh from the registry; a working tree
    usually does not, so reproduce that before believing anything:

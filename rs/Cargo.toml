@@ -1,0 +1,53 @@
+# The Rust port of @tabnas/jsonic-cli. ts/ is canonical; go/ and this
+# crate track it. `version` MUST equal ts/package.json "version" and
+# `VERSION` in src/lib.rs: tests/version_test.rs fails the build when they
+# drift.
+
+[package]
+name = "tabnas-jsonic-cli"
+version = "0.5.6"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+description = "Command-line interface for the jsonic relaxed-JSON parser: reads relaxed JSON from arguments, files or standard input and prints standard JSON."
+repository = "https://github.com/tabnas/jsonic-cli"
+readme = "README.md"
+keywords = ["jsonic", "json", "cli", "parser", "tabnas"]
+categories = ["command-line-utilities", "parsing"]
+
+[lib]
+name = "tabnas_jsonic_cli"
+path = "src/lib.rs"
+
+# The `jsonic` command. The library is the crate, and the binary is a
+# launcher over `tabnas_jsonic_cli::run`, the port of go/cmd/jsonic and of
+# ts/bin/jsonic. The tests drive `run` in process rather than spawning it.
+[[bin]]
+name = "jsonic"
+path = "src/bin/jsonic.rs"
+
+[dependencies]
+# The engine, the grammars and the debug plugin are consumed as SIBLING
+# CHECKOUTS, the standard tabnas development model: clone
+# https://github.com/tabnas/parser, https://github.com/tabnas/jsonic,
+# https://github.com/tabnas/json and https://github.com/tabnas/debug next
+# to this repo. None of them is published, so there is no registry version
+# to fall back on.
+tabnas = { path = "../../parser/rs" }
+tabnas-jsonic = { path = "../../jsonic/rs" }
+# The two remaining built-in plugins of the compiled-in registry, which
+# stands in for the TypeScript CLI's `require`. Both are runtime
+# dependencies here, exactly as @tabnas/debug is a runtime peer of the
+# TypeScript package.
+tabnas-json = { path = "../../json/rs" }
+tabnas-debug = { path = "../../debug/rs" }
+indexmap = "2"
+# `preserve_order` keeps an option document's keys in the order they were
+# written, which is what the dotted-path option bag is built as.
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+[dev-dependencies]
+# The shared fixture loader, escape codec, runner and divergence
+# register: the Rust half of @tabnas/support, so the three loaders cannot
+# drift.
+tabnas-support = { path = "../../support/rs", features = ["serde_json"] }
