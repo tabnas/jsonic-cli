@@ -23,11 +23,12 @@ JSON's own escape rules apply.
 
 - TypeScript: `ts/test/parity.test.js` — the shared loader, a local loop.
 - Go: `go/cli/parity_test.go` — `support.Runner{...}.Dir(t, dir)`.
+- Rust: `rs/tests/parity_test.rs` — `Runner::new_with_row(..).dir(&dir)`.
 
-Both read the fixtures with
-[`@tabnas/support`](https://github.com/tabnas/support) and its Go half —
-the same loader, escape codec and value comparison, so the two cannot
-drift from each other.
+All three read the fixtures with
+[`@tabnas/support`](https://github.com/tabnas/support) and its Go and
+Rust halves — the same loader, escape codec and value comparison, so they
+cannot drift from each other.
 
 The Go side also uses the shared ROW LOOP; the TypeScript side cannot,
 because running the CLI there is asynchronous and the loop is synchronous
@@ -35,9 +36,15 @@ in both languages (Go has no async to be). That is the one asymmetry, and
 it is confined to the loop: everything the loop reads and compares with is
 shared.
 
-Both discover files by directory listing: adding a `.tsv` here runs it in
-both runtimes without touching either runner. An empty fixture, and a spec
-directory with no fixtures in it, both **fail**.
+All three discover files by directory listing: adding a `.tsv` here runs
+it in every runtime without touching any runner. An empty fixture, and a
+spec directory with no fixtures in it, both **fail**.
+
+The comparison is per PRINTED ENTRY, not per line. One entry is one
+`console.log` in the canonical command, and the help text, the grammar
+description and indented JSON each span several physical lines while
+staying one entry. The Rust runner reads them through
+`tabnas_jsonic_cli::capture` for that reason.
 
 Cases that turn on how a runtime loads code or reads the filesystem stay
 out of here, in `ts/test/cli.test.js` and `go/cli/run_test.go`: the `-p`
@@ -53,5 +60,19 @@ registry) and the `-f` file fixtures (`./test/foo.jsonic` vs
 - TypeScript is canonical. If the two runtimes disagree, the TS behaviour is
   the expected value — unless Go has exposed a genuine TS defect, in which
   case fix TS first and pin the corrected behaviour here.
-- A new fixture must pass in BOTH runtimes: run `go test ./...` (from `go/`)
-  and `npm test` (from `ts/`) before considering it done.
+- A new fixture must pass in EVERY runtime: run `go test ./...` (from
+  `go/`), `npm test` (from `ts/`) and `cargo test --all-targets` (from
+  `rs/`) before considering it done.
+
+## `divergent.tsv`
+
+[`divergent.tsv`](divergent.tsv) sits HERE rather than in `spec/`,
+deliberately. Everything in `spec/` is discovered and run by all three
+suites, so a row one runtime cannot pass breaks that runtime's build. The
+register is the opposite: it records inputs where the runtimes DISAGREE,
+one column per runtime, and the port that owns a column asserts it.
+`rs/tests/divergence_test.rs` runs it for `rust`.
+
+A row that gets FIXED fails as loudly as one that regresses, and must
+then be deleted. See [`../DIVERGENCE.md`](../DIVERGENCE.md) for the shape
+of each recorded disagreement and the measurement behind it.

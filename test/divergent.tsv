@@ -1,0 +1,34 @@
+argv	ts	go	rust	stdin	issue
+# The LIVE divergence register for the Rust port -- the AUTHORITATIVE
+# list of inputs where rs/ produces a different RESULT from the canonical
+# ts/. DIVERGENCE.md at the repository root explains the shape of each
+# disagreement and points here; this file is what RUNS, so if the two ever
+# disagree, this one wins.
+#
+# Six tab-separated columns. `ts`, `go` and `rust` are what each port
+# ACTUALLY produces today: the FIRST printed line as a JSON string, the
+# same vocabulary as the `stdout` column of test/spec/*.tsv, or
+# ERROR:<code>. `stdin` is the piped text, `issue` the repair that closes
+# the row.
+#
+# This file is NOT in test/spec/, deliberately. Everything in that
+# directory is discovered and run by all three suites, and a register
+# belongs to the port that records it: rs/tests/divergence_test.rs runs
+# this one and asserts the `rust` column. A row that gets FIXED fails as
+# loudly as one that regresses, and must then be deleted -- that is the
+# whole point of an executable ledger over a prose list.
+#
+# Divergences a single printed value cannot express -- the exit code, the
+# text on standard error, the help text, the debug trace -- are pinned by
+# tests in rs/tests/divergence_test.rs instead, and described in
+# DIVERGENCE.md. Adding a row here is an admission of parity debt, not a
+# way to silence a failing test.
+#
+# Nesting past 127 containers. tabnas-jsonic (Rust) refuses it with the
+# engine's `cancel` code, because the engine walks a value with the call
+# stack to display, convert or drop it, and a few thousand levels ended
+# the process. TypeScript and Go have no limit. Measured at depth 128,
+# the first depth that differs: depth 127 agrees in all three. The limit
+# lives in tabnas/jsonic, not in this repo, and this row closes when that
+# crate's does.
+["[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"]	"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"	"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"	ERROR:cancel		tabnas/jsonic rs nesting cap

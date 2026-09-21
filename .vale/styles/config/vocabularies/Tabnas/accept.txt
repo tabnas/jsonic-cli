@@ -16,12 +16,14 @@
 [Gg]lobals
 [Jj]son
 [Jj]sonic
+[Ll]ockfile
 [Nn]amespaced
 [Nn]pm
 [Rr]eimplement
 [Rr]eimplementation
 [Rr]eimplements
 [Rr]epo
+[Rr]untimes
 [Ss]erializer
 [Ss]tdout
 [Ss]tringify

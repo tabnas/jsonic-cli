@@ -11,6 +11,13 @@ argv	stdout	stdin
 ["a:1e3"]	"{\"a\":1000}"
 ["a:0.1"]	"{\"a\":0.1}"
 ["a:-0"]	"{\"a\":0}"
+# util.deep refuses the prototype-reaching keys at every level, an
+# element the overlay APPENDS to an array included: TypeScript merges
+# every index the overlay names, so a slot past the end of the base is
+# merged into the `undefined` already there rather than taken whole.
+["a:[{__proto__:1}]"]	"{\"a\":[{}]}"
+["a:[{constructor:1},{prototype:2}]"]	"{\"a\":[{},{}]}"
+["[1]","[{__proto__:1},{__proto__:2}]"]	"[{},{}]"
 # Object keys print in SOURCE order, not sorted (JSON.stringify parity).
 ["z:1,a:2,m:{y:1,b:2}"]	"{\"z\":1,\"a\":2,\"m\":{\"y\":1,\"b\":2}}"
 # A base-prefixed integer past int64 keeps its exact mathematical value,
