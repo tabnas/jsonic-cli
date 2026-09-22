@@ -95,7 +95,7 @@ matching `null != plugins.debug` in TypeScript.
 | `tests/cli_test.rs` | The port of `ts/test/cli.test.js` and `go/cli/run_test.go`, including both spellings of every long flag and the `--k=v` form the canonical command does not accept. |
 | `tests/stringify_test.rs` | The output contract. Every expectation was MEASURED by running `JSON.stringify` under Node, because a formatter checked against itself proves nothing. |
 | `tests/untrusted_test.rs` | Deep nesting, long input, unterminated constructs, empty input, control characters, odd Unicode and bytes that are not UTF-8. |
-| `tests/divergence_test.rs` | The `../test/divergent.tsv` register, plus the divergences a fixture cell cannot express. |
+| `tests/divergence_test.rs` | The `../test/divergent.tsv` register (the `rust` column; `ts/test/divergent.test.js` and `go/cli/divergence_test.go` assert theirs), plus the divergences a fixture cell cannot express. |
 | `tests/version_test.rs` | `Cargo.toml`, `Cargo.lock`, `VERSION` and `ts/package.json` agree. |
 | `tests/common/mod.rs` | `run`, `run_with`, `run_streams`, and the four fixture plugins. |
 | `tests/testdata/` | `foo.jsonic` and `bar.jsonic`, byte for byte the `ts/test/` and `go/cli/testdata/` files. |
@@ -119,6 +119,11 @@ A row that this port cannot pass goes in `../test/divergent.tsv` with a
 `rust` column and an entry in `../DIVERGENCE.md`, never in
 `../test/spec/`: everything there is run by TypeScript and Go too, and a
 row one of them cannot pass breaks their suites.
+
+Fill every runtime column of such a row, and measure each one rather
+than copying it from a page: all three suites read the file now, each
+asserting its own column, and each also uses the others to tell a CLOSED
+divergence from a regression.
 
 ## The gate
 

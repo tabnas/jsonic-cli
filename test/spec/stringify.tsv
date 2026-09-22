@@ -12,3 +12,8 @@ argv	stdout	stdin
 # numeric key to its string form.
 ["-o","JSON.replacer=[a,c]","a:1,b:2,c:{a:3,b:4}"]	"{\"a\":1,\"c\":{\"a\":3}}"
 ["-o","JSON.replacer=1","a:1,1:2"]	"{\"1\":2}"
+# A string space is cut at ten UTF-16 CODE UNITS, the count
+# JSON.stringify uses, and not at ten bytes or ten characters: six astral
+# characters are twelve units, so five of them survive. Measured under
+# Node.
+["-o","JSON.space=😀😀😀😀😀😀","a:1"]	"{\n😀😀😀😀😀\"a\": 1\n}"
