@@ -227,12 +227,13 @@ Worth separating out, because each looks like one:
 
 ## Where Go diverges and Rust does not
 
-Three output behaviours still differ between `go/cli/stringify.go` and
-this port. They are listed because a reader comparing the two ports will
-meet them, not because this port diverges: on all three, Rust prints what
-the canonical TypeScript prints. Two of them are Go defects; the third,
+Four behaviours still differ between the Go port and this one. They are
+listed because a reader comparing the two ports will meet them, not
+because this port diverges: on all four, Rust prints what the canonical
+TypeScript prints. Two are defects in `go/cli/stringify.go`; the third,
 key order, is ruled out of the value contract by admin `DECISIONS.md`
-ADR-15 and is a difference rather than a defect.
+ADR-15 and is a difference rather than a defect; the fourth is not this
+repository's to repair at all.
 
 | input | TypeScript | Go | Rust |
 |---|---|---|---|
@@ -240,6 +241,7 @@ ADR-15 and is a difference rather than a defect.
 | `jsonic -o 'JSON.space="2"' a:1` | two-space indent | indent of the character `2` | two-space indent |
 | `jsonic -o 'JSON.replacer="[a]"' a:1,b:2` | `{"a":1}` | `{}` | `{"a":1}` |
 | `jsonic 2:b,1:a` | `{"1":"a","2":"b"}` | `{"2":"b","1":"a"}` | `{"1":"a","2":"b"}` |
+| `jsonic -o value.def.foo.val=1 a:true,b:foo` | `{"a":true,"b":1}` | `{"a":"true","b":1}` | `{"a":true,"b":1}` |
 
 Each row is asserted, not merely written down: `test/divergent.tsv`
 carries them with a cell per runtime, and the three suites named above
@@ -293,6 +295,25 @@ string: `Jsonic("2")` is the number two and `Jsonic("[a]")` is the array
 `["a"]`. Go keeps the literal string. `Jsonic("--")` is the string
 `--`, which is why `test/spec/stringify.tsv` passes in all three either
 way. Pinned by `a_string_json_option_is_parsed_again`.
+
+**A value def replaces the built-in ones.** `-o value.def.foo.val=1`
+adds a value def in all three runtimes. In Go it also DROPS the defs the
+grammar ships, so `true` and `null` then lex as text: measured on
+2026-09-22, `jsonic -o value.def.foo.val=1 a:true,b:foo` prints
+`{"a":true,"b":1}` under `ts/src/jsonic-cli.ts` and the Rust binary, and
+`{"a":"true","b":1}` under `go/cmd/jsonic`.
+
+The repair is not in this repository. The option bag the Go command
+builds is the right one, and a direct `jsonic.Make(tabnas.MapToOptions(
+bag))` answers the same way, so the difference is below the command:
+`parser/go`'s `options.go` rebuilds the configuration's value defs from
+the supplied ones alone (`cfg.ValueDef = make(map[string]any)`, and
+`cfg.ValueDefRe` truncated) where the canonical `util.deep` merges into
+what is already there. Working around it here would mean this command
+carrying its own copy of the grammar's default defs, which is grammar
+knowledge that belongs in the engine and would drift the day the engine
+changed. Recorded as a row rather than repaired, and the row closes when
+`tabnas/parser` does.
 
 ## Repaired, and no longer divergent
 
@@ -353,3 +374,30 @@ session ran two sweeps of its own over the built binaries:
 
 Rust matches TypeScript on the first three of those families. The
 fourth, the function-typed option, is the one recorded against Rust.
+
+Those sweeps measured Rust against GO, because the canonical command
+could not be run in that session. The session of 2026-09-22 ran it, and
+diffed the Rust binary against `run(argv, console)` directly over 781
+argument vectors: the `JSON` option surface, the engine options, the
+metadata flags, `--`, `-` and the value-less trailing flags, each
+crossed with a corpus of twenty-three sources, plus ordered pairs of
+sources. Two runs agree when the first printed entry and the success or
+failure of the run agree.
+
+Twenty-four vectors disagreed, and every one of them is a family already
+recorded here or an artefact of how the canonical command was read:
+
+- 20 are the astral `JSON.space` cut. The comparison read the
+  TypeScript string IN PROCESS, where it holds the lone high surrogate,
+  while the Rust column came from the binary's standard output. On the
+  STREAM the two agree: `node ts/bin/jsonic -o 'JSON.space=abcdefghi<astral>' a:1`
+  writes `ef bf bd` where the half was, which is the U+FFFD Rust writes.
+- 2 are the help text's Plugins section, recorded above.
+- 2 are `-p json` and `-p @tabnas/json`, which the canonical command
+  could not resolve in this checkout: `@tabnas/json` is neither a
+  dependency nor a peer dependency of `ts/package.json`, so
+  `require` reported `Cannot find module 'json'` while the Rust binary
+  carries the plugin in its registry. That is the compiled-in registry
+  already recorded under "Plugin loading", seen from the other side.
+
+No other vector disagreed, so no unrecorded divergence was found.
