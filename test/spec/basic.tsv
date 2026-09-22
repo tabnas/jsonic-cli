@@ -24,3 +24,12 @@ argv	stdout	stdin
 # rounded once to float64 (parser 0.8.1 / jsonic 0.6.1). Not clamped to
 # MaxInt64, and not wrapped negative by a Go float->int64 conversion.
 ["a:0xFFFFFFFFFFFFFFFF"]	"{\"a\":18446744073709552000}"
+# ECMA-262 6.1.6.1.20 Number::toString, not the host language's own
+# float formatter: fixed notation from 1e-6 up to just under 1e21, an
+# exponent outside that range, and a shortest-form TIE broken to the EVEN
+# digit rather than away from zero. Measured under Node.
+["a:1658206780088562.2"]	"{\"a\":1658206780088562.2}"
+["a:0.000001"]	"{\"a\":0.000001}"
+["a:-1.5e-9"]	"{\"a\":-1.5e-9}"
+["a:1e21"]	"{\"a\":1e+21}"
+["a:5e-324"]	"{\"a\":5e-324}"

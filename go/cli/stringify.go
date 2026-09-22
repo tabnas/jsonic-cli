@@ -46,8 +46,8 @@ func parseReplacer(jsonBag map[string]any) []string {
 
 // parseSpace resolves the JSON.space option into an indent string,
 // mirroring JSON.stringify's space argument: a number N (clamped to 0..10)
-// becomes N spaces; a string is used verbatim (first 10 chars). An absent
-// or invalid space means no indentation.
+// becomes N spaces; a string is cut at its first 10 UTF-16 code units. An
+// absent or invalid space means no indentation.
 func parseSpace(jsonBag map[string]any) string {
 	if jsonBag == nil {
 		return ""
@@ -58,10 +58,7 @@ func parseSpace(jsonBag map[string]any) string {
 	}
 	switch v := raw.(type) {
 	case string:
-		if len(v) > 10 {
-			return v[:10]
-		}
-		return v
+		return truncateUTF16(v, 10)
 	case float64:
 		return spaceFromNumber(v)
 	case int:
@@ -70,6 +67,43 @@ func parseSpace(jsonBag map[string]any) string {
 		return spaceFromNumber(float64(v))
 	}
 	return ""
+}
+
+// truncateUTF16 returns the leading `units` UTF-16 code units of s.
+//
+// JSON.stringify cuts a string `space` with substring(0, 10), and
+// substring counts UTF-16 code units. A Go string counts BYTES, so
+// s[:10] cuts a multi-byte character in half: the standard output then
+// carries a lone lead byte and is not valid UTF-8 at all, once per
+// indent level.
+//
+// A character STRADDLING the boundary is the sharp case. JavaScript
+// keeps the high surrogate on its own, and Node writes an unpaired
+// surrogate to a UTF-8 stream as U+FFFD, so the canonical command's
+// indent has a replacement character where the gap is. A Go string
+// cannot hold half a surrogate pair, and dropping the character is not
+// the same answer, so the half becomes U+FFFD here. Measured under Node
+// with -o 'JSON.space="abcdefghi<astral>"', whose indent is the nine
+// ASCII characters plus the three bytes ef bf bd. rs/src/stringify.rs
+// carries the same function.
+func truncateUTF16(s string, units int) string {
+	var b strings.Builder
+	used := 0
+	for _, r := range s {
+		width := 1
+		if 0xFFFF < r {
+			width = 2
+		}
+		if units < used+width {
+			if used < units {
+				b.WriteRune(utf8.RuneError)
+			}
+			break
+		}
+		b.WriteRune(r)
+		used += width
+	}
+	return b.String()
 }
 
 func spaceFromNumber(n float64) string {
@@ -265,28 +299,98 @@ func writeArray(b *strings.Builder, a []any, replacer []string, space, indent st
 	b.WriteByte(']')
 }
 
-// formatNumber renders a number the way JSON.stringify does: integers
-// without a decimal point, non-integers with the shortest round-trippable
-// form, and non-finite numbers as null.
+// formatNumber renders a number the way JSON.stringify does: a
+// non-finite number is null, and everything else is JavaScript's
+// Number::toString.
 func formatNumber(f float64) string {
 	if math.IsNaN(f) || math.IsInf(f, 0) {
 		return "null"
 	}
-	// JSON.stringify(-0) is "0", not "-0".
+	return jsNumberToString(f)
+}
+
+// jsNumberToString is ECMAScript Number::toString with radix 10
+// (ECMA-262 6.1.6.1.20), which is what String(n) gives and therefore what
+// JSON.stringify writes for a finite number.
+//
+// Neither of Go's shortest forms is a substitute. FormatFloat(f, 'f', -1,
+// 64) never switches to an exponent, so 1e21 comes out as twenty-two
+// digits where JavaScript writes 1e+21. FormatFloat(f, 'g', -1, 64)
+// switches much earlier than the specification does, so 1658206780088562.2
+// came out as 1.6582067800885622e+15 and 0.000001 as 1e-06.
+//
+// The digits come from a FIXED-precision render rather than a shortest
+// one. Both round-trip, but they break an exact decimal midpoint
+// differently: the shortest form rounds away from zero, while the
+// specification takes the even digit, which is what a fixed-precision
+// render does. 1658206780088562.2 is such a midpoint. This is a port of
+// jsNumberToString in tabnas/csv's go/csv.go, and rs/src/stringify.rs
+// carries the same algorithm. Fuzzed against Node here over 221,898
+// doubles (random bit patterns, decimal-scaled values, midpoint-prone
+// halves, powers of ten and their neighbours, subnormals and the
+// extremes) with no mismatch. ts/src/jsonic-cli.ts needs none of it,
+// because the language does it.
+//
+// Deliberately NOT the exact integer value via FormatInt(int64(f)): past
+// 2^53 the two differ (JavaScript prints 2^63 as 9223372036854776000, not
+// 9223372036854775808), and outside int64 range a Go float to int
+// conversion is undefined and wraps. 0xFFFFFFFFFFFFFFFF, which the engine
+// yields as a float64, came out as -9223372036854775808.
+func jsNumberToString(f float64) string {
+	// Covers -0, which JavaScript prints as "0".
 	if f == 0 {
 		return "0"
 	}
-	if f == math.Trunc(f) && math.Abs(f) < 1e21 {
-		// Shortest round-trippable digits in fixed notation — what JS
-		// Number→string produces below 1e21. Deliberately NOT the exact
-		// integer value via FormatInt(int64(f)): past 2^53 the two differ
-		// (JS prints 2^63 as 9223372036854776000, not 9223372036854775808),
-		// and outside int64 range a Go float→int conversion is undefined
-		// and wraps — 0xFFFFFFFFFFFFFFFF (1.8446744073709552e19, which the
-		// engine now yields as a float64) came out as -9223372036854775808.
-		return strconv.FormatFloat(f, 'f', -1, 64)
+
+	magnitude := math.Abs(f)
+
+	// The specification's `s` (the digits) and `n` (where the decimal
+	// point sits). Take the digit count from the shortest form, then take
+	// the digits themselves at that fixed precision.
+	shortest := strconv.FormatFloat(magnitude, 'e', -1, 64)
+	mantissa, _, _ := strings.Cut(shortest, "e")
+	k := len(strings.Replace(mantissa, ".", "", 1))
+
+	fixed := strconv.FormatFloat(magnitude, 'e', k-1, 64)
+	mantissa, exponentText, _ := strings.Cut(fixed, "e")
+	digits := strings.Replace(mantissa, ".", "", 1)
+	exponent, err := strconv.Atoi(exponentText)
+	if err != nil {
+		// FormatFloat with 'e' always emits a signed integer exponent.
+		return strconv.FormatFloat(f, 'g', -1, 64)
 	}
-	return strconv.FormatFloat(f, 'g', -1, 64)
+	n := exponent + 1
+
+	var body string
+	switch {
+	case k <= n && n <= 21:
+		// 12 -> "12", 1e19 -> "10000000000000000000"
+		body = digits + strings.Repeat("0", n-k)
+	case 0 < n && n <= 21:
+		// 1.5 -> "1.5"
+		body = digits[:n] + "." + digits[n:]
+	case -6 < n && n <= 0:
+		// 1e-6 -> "0.000001"
+		body = "0." + strings.Repeat("0", -n) + digits
+	default:
+		// 1e21 -> "1e+21", 1e-7 -> "1e-7"
+		e := n - 1
+		head := digits
+		if 1 < k {
+			head = digits[:1] + "." + digits[1:]
+		}
+		sign := "+"
+		if e < 0 {
+			sign = "-"
+			e = -e
+		}
+		body = head + "e" + sign + strconv.Itoa(e)
+	}
+
+	if f < 0 {
+		return "-" + body
+	}
+	return body
 }
 
 // writeString writes a JSON-escaped, double-quoted string matching the
