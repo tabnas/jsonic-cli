@@ -70,8 +70,9 @@ registry) and the `-f` file fixtures (`./test/foo.jsonic` vs
 deliberately. Everything in `spec/` is discovered and run by all three
 suites, so a row one runtime cannot pass breaks that runtime's build. The
 register is the opposite: it records inputs where the runtimes DISAGREE,
-one column per runtime, and the port that owns a column asserts it.
-`rs/tests/divergence_test.rs` runs it for `rust`.
+one column per runtime, and the runtime that owns a column asserts it:
+`ts/test/divergent.test.js` runs `ts`, `go/cli/divergence_test.go` runs
+`go` and `rs/tests/divergence_test.rs` runs `rust`.
 
 A row that gets FIXED fails as loudly as one that regresses, and must
 then be deleted. See [`../DIVERGENCE.md`](../DIVERGENCE.md) for the shape

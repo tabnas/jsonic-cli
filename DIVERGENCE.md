@@ -8,9 +8,14 @@ same input**.
 
 [`test/divergent.tsv`](test/divergent.tsv) is the authority for anything
 a fixture cell can express, not this page. Unlike a prose list it is
-**run**: `rs/tests/divergence_test.rs` asserts the `rust` column on every
-run, so a divergence that gets **fixed** fails the suite as loudly as one
-that regresses, and the row must then be deleted.
+**run**, and every column is run by the runtime it describes:
+`ts/test/divergent.test.js` asserts `ts`, `go/cli/divergence_test.go`
+asserts `go` and `rs/tests/divergence_test.rs` asserts `rust`. So a
+divergence that gets **fixed** fails the suite as loudly as one that
+regresses, and the row must then be deleted. The canonical column is the
+one it costs most to leave unrun: every other column is measured against
+it, so a stale `ts` cell would make the other two suites assert the wrong
+difference while staying green.
 
 It sits beside `test/spec/` rather than inside it, deliberately. Every
 `.tsv` in `test/spec/` is discovered and run by all three suites, and a
@@ -222,10 +227,12 @@ Worth separating out, because each looks like one:
 
 ## Where Go diverges and Rust does not
 
-Four output behaviours are wrong in `go/cli/stringify.go` and right
-here. They are listed because a reader comparing the two ports will meet
-them, not because this port diverges: on all four, Rust prints what the
-canonical TypeScript prints.
+Three output behaviours still differ between `go/cli/stringify.go` and
+this port. They are listed because a reader comparing the two ports will
+meet them, not because this port diverges: on all three, Rust prints what
+the canonical TypeScript prints. Two of them are Go defects; the third,
+key order, is ruled out of the value contract by admin `DECISIONS.md`
+ADR-15 and is a difference rather than a defect.
 
 | input | TypeScript | Go | Rust |
 |---|---|---|---|
@@ -233,7 +240,11 @@ canonical TypeScript prints.
 | `jsonic -o 'JSON.space="2"' a:1` | two-space indent | indent of the character `2` | two-space indent |
 | `jsonic -o 'JSON.replacer="[a]"' a:1,b:2` | `{"a":1}` | `{}` | `{"a":1}` |
 | `jsonic 2:b,1:a` | `{"1":"a","2":"b"}` | `{"2":"b","1":"a"}` | `{"1":"a","2":"b"}` |
-| `jsonic a:1658206780088562.2` | `{"a":1658206780088562.2}` | `{"a":1.6582067800885622e+15}` | `{"a":1658206780088562.2}` |
+
+Each row is asserted, not merely written down: `test/divergent.tsv`
+carries them with a cell per runtime, and the three suites named above
+run their own column, so a row that gets repaired fails and must then be
+deleted.
 
 **Key order under a replacer.** `JSON.stringify` builds a PropertyList
 from the replacer array and then walks THAT, looking each key up, so the
@@ -263,6 +274,15 @@ the case is pinned by `array_index_keys_enumerate_before_the_others` in
 `rs/tests/stringify_test.rs` rather than by a `test/spec/` row: every
 runtime runs that directory, and a row here would fail the Go suite.
 
+This one is NOT a Go defect to repair. ADR-15 rules map key order out of
+the parsed-value contract, and names this exact phenomenon, so Go
+preserving source order is a permitted difference and emulating
+ECMAScript here would be a choice rather than an obligation. Rust
+emulates it because matching the canonical command costs nothing over
+an `IndexMap`; Go is free either way, and the row records the
+difference. The same point was raised and withdrawn on
+[tabnas/jsonic-cli#29](https://github.com/tabnas/jsonic-cli/issues/29).
+
 **A string option value is parsed twice.** `ts/src/jsonic-cli.ts` ends
 with `replacer = Jsonic(options.JSON.replacer)` and
 `space = Jsonic(options.JSON.space)`, and the bag already holds a value
@@ -274,43 +294,46 @@ string: `Jsonic("2")` is the number two and `Jsonic("[a]")` is the array
 `--`, which is why `test/spec/stringify.tsv` passes in all three either
 way. Pinned by `a_string_json_option_is_parsed_again`.
 
-**Number formatting below 1e-6.** `JSON.stringify` writes a number with
-JavaScript's `Number::toString`, which uses fixed notation down to 1e-6
-and an exponent with NO leading zero below it. Measured under Node:
-`JSON.stringify({a:0.000001})` is `{"a":0.000001}` and
-`JSON.stringify({a:-1.5e-9})` is `{"a":-1.5e-9}`. Go prints `1e-06` and
-`-1.5e-09`, which is Go's `%g`, not JavaScript's. Rust matches
-TypeScript, pinned by the `1e-6`, `1e-7`, `1.2345e-8` and `5e-324` rows
-of `numbers_match_json_stringify`.
+## Repaired, and no longer divergent
 
-The same `%g` picks exponential notation for a large number too, where
-JavaScript writes the digits out: measured under Node against
-`ts/src/jsonic-cli.ts`, `jsonic a:1658206780088562.2` prints
-`{"a":1658206780088562.2}` and Go prints `{"a":1.6582067800885622e+15}`.
-That value is also a shortest-form TIE, where two equally short digit
-strings are the same distance from the double and ECMAScript takes the
-one ending in an even digit. Rust's shortest formatter rounds away from
-zero, so the digits are taken from a fixed-precision render at the
-shortest length instead, the repair `csv/rs` and `xml/rs` already carry.
-Fuzzed against Node over 81,884 doubles with no mismatch; the earlier
-form missed 670 of them. Pinned by
-`numbers_at_a_shortest_form_tie_round_to_even`.
+Two behaviours listed here until 2026-09-22 were Go defects, reported as
+[tabnas/jsonic-cli#29](https://github.com/tabnas/jsonic-cli/issues/29)
+and repaired in `go/cli/stringify.go`. They are recorded as repairs
+rather than deleted, because the classes they belong to keep recurring
+across this fleet.
 
-A fourth, smaller one: Go cuts a string `space` with a BYTE slice
-(`v[:10]`), TypeScript with `substring(0, 10)` over UTF-16 code units.
-Rust counts UTF-16 code units, so
-`JSON.stringify({a:1}, null, "\u{1F600}".repeat(6))` indents with five
-astral characters in both TypeScript and Rust. Pinned by
-`a_string_space_is_cut_at_ten_utf16_units`.
+**Number to string.** `JSON.stringify` writes a number with JavaScript's
+`Number::toString` (ECMA-262 6.1.6.1.20), which uses fixed notation from
+`1e-6` up to just under `1e21`, an exponent outside that range with no
+leading zero in it, and breaks a shortest-form tie to the even digit. Go
+used `strconv.FormatFloat(f, 'g', -1, 64)`, which switches to an
+exponent far earlier and rounds a tie away from zero: measured under
+Node against `ts/src/jsonic-cli.ts`, `jsonic a:1658206780088562.2`
+prints `{"a":1658206780088562.2}` and Go printed
+`{"a":1.6582067800885622e+15}`; `jsonic a:0.000001` prints
+`{"a":0.000001}` and Go printed `{"a":1e-06}`. `jsNumberToString` in
+`go/cli/stringify.go` now carries the specification's algorithm, the one
+`csv/go`, `csv/rs`, `xml/rs` and `rs/src/stringify.rs` already carry:
+take the digit count from the shortest form, then take the digits from a
+fixed-precision render at that width. Fuzzed against Node over 221,898
+doubles with no mismatch. Pinned by the five number rows of
+`test/spec/basic.tsv`, which all three runtimes run, and by
+`TestFormatNumberIsJavaScriptNumberToString` in
+`go/cli/stringify_test.go`; Rust keeps `numbers_match_json_stringify`
+and `numbers_at_a_shortest_form_tie_round_to_even`.
 
-A cut that lands INSIDE an astral character sharpens that one. The tenth
-unit is then the first half of a surrogate pair, which JavaScript keeps
-and Node writes to a UTF-8 stream as U+FFFD. Measured under Node against
-`ts/src/jsonic-cli.ts` with a nine-character prefix and one astral
-character: TypeScript indents with the nine characters plus the bytes
-`ef bf bd`, Go emits the nine characters plus the single byte `f0`,
-which is not valid UTF-8 on its own, and Rust writes U+FFFD as
-TypeScript does. Pinned by
+**A string `JSON.space` cut by bytes.** TypeScript cuts with
+`substring(0, 10)`, which counts UTF-16 code units. Go cut with a byte
+slice (`v[:10]`), which splits a multi-byte character, so the command's
+standard output was not valid UTF-8 at all, once per indent level:
+`jsonic -o 'JSON.space=abcdefghi<astral>' 'a:{b:1}'` emitted the nine
+ASCII characters plus the single byte `f0`. Both ports now count UTF-16
+code units. Where the cut lands INSIDE an astral character, TypeScript
+holds the lone high surrogate and Node writes it to a UTF-8 stream as
+U+FFFD, so both ports write U+FFFD there. Pinned by the astral `space`
+row of `test/spec/stringify.tsv`, by
+`TestSpaceCutThroughAnAstralCharacter` in `go/cli/stringify_test.go`,
+and in Rust by `a_string_space_is_cut_at_ten_utf16_units` and
 `a_space_cut_through_an_astral_character_keeps_its_half`.
 
 ## What was compared, and how widely

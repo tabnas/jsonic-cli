@@ -32,3 +32,30 @@ argv	ts	go	rust	stdin	issue
 # lives in tabnas/jsonic, not in this repo, and this row closes when that
 # crate's does.
 ["[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"]	"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"	"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"	ERROR:cancel		tabnas/jsonic rs nesting cap
+#
+# Where GO diverges and this port does not. Each row is the canonical
+# value in `ts` and in `rust`, and what go/cli/stringify.go prints today
+# in `go`; go/cli/divergence_test.go asserts that column. Measured on
+# 2026-09-22 by running all three commands over each argument vector.
+#
+# A replacer array sets the OUTPUT ORDER. JSON.stringify builds a
+# PropertyList from the array and walks THAT, looking each key up, so the
+# order is the replacer's and not the object's. Go filters the object's
+# own keys instead, which agrees only where the two orders coincide.
+["-o","JSON.replacer=[b,a]","a:1,b:2"]	"{\"b\":2,\"a\":1}"	"{\"a\":1,\"b\":2}"	"{\"b\":2,\"a\":1}"		go replacer key order
+#
+# A STRING option value is parsed a second time. ts/src/jsonic-cli.ts ends
+# with `space = Jsonic(options.JSON.space)` and the bag already holds a
+# parsed value, so Jsonic("2") is the number two and Jsonic("[a]") is the
+# array ["a"]. Go keeps the literal string, so it indents with the
+# character 2 and filters by a key no object has.
+["-o","JSON.space=\"2\"","a:1"]	"{\n  \"a\": 1\n}"	"{\n2\"a\": 1\n}"	"{\n  \"a\": 1\n}"		go string option parsed once
+["-o","JSON.replacer=\"[a]\"","a:1,b:2"]	"{\"a\":1}"	"{}"	"{\"a\":1}"		go string option parsed once
+#
+# Array-index keys enumerate FIRST in a JavaScript object, ascending,
+# ahead of the other keys in creation order. Rust emulates that because it
+# costs nothing over an IndexMap; Go prints source order. This row is NOT
+# parity debt: admin DECISIONS.md ADR-15 rules map key order out of the
+# parsed-value contract, and it stays here as a recorded difference rather
+# than a repair waiting to happen.
+["2:b,1:a"]	"{\"1\":\"a\",\"2\":\"b\"}"	"{\"2\":\"b\",\"1\":\"a\"}"	"{\"1\":\"a\",\"2\":\"b\"}"		ADR-15 key order out of contract

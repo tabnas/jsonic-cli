@@ -95,12 +95,30 @@ Output is produced by a faithful port of
 
 | Option | Effect |
 |---|---|
-| `-o JSON.space=<n or string>` | Indent. A number N is clamped to 0..10 spaces; a string is used verbatim (first 10 chars). `-n` sets `2`. |
+| `-o JSON.space=<n or string>` | Indent. A number N is clamped to 0..10 spaces; a string is cut at its first 10 UTF-16 code units, the count `JSON.stringify` uses. `-n` sets `2`. |
 | `-o JSON.replacer=<key or [keys]>` | Key whitelist. An array keeps only those keys (recursively at every object level); a single scalar is wrapped to a one-element list. Absent means no filtering. Array *elements* are never filtered, only object keys. |
 
-Object keys are emitted in **sorted order** (the engine's parse result is an
-unordered map, so there is no insertion order to preserve). Numbers,
-strings, escaping, and non-finite handling mirror `JSON.stringify`.
+Object keys are emitted in **source order**: the engine's parse result is
+an insertion-ordered `*jsonic.OrderedMap` and the serializer walks
+`om.Keys`. (A plain, order-less `map[string]any`, which a parse result no
+longer is, still falls back to sorted keys.) Strings, escaping and
+non-finite handling mirror `JSON.stringify`.
+
+A number is written by `jsNumberToString`, ECMAScript `Number::toString`
+with radix 10 (ECMA-262 6.1.6.1.20): fixed notation from `1e-6` up to just
+under `1e21`, an exponent outside that range with no leading zero in it,
+and a shortest-form tie broken to the even digit. Neither of Go's own
+shortest forms matches that, which is what
+[tabnas/jsonic-cli#29](https://github.com/tabnas/jsonic-cli/issues/29)
+recorded: `%g` printed `1.6582067800885622e+15` for `1658206780088562.2`
+and `1e-06` for `0.000001`.
+
+A string `JSON.space` is cut at ten UTF-16 code units rather than ten
+bytes. A cut landing inside an astral character leaves the canonical
+command holding a lone high surrogate, which Node writes to a UTF-8
+stream as U+FFFD, so that is what the indent carries here. The byte cut
+this replaced wrote the lead byte on its own, once per indent level,
+which no UTF-8 reader accepts.
 
 ## Plugins
 

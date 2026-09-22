@@ -28,7 +28,8 @@ the Rust port on 2026-09-21.
 
 Where a port produces a different result for the same input it is
 recorded in [`DIVERGENCE.md`](DIVERGENCE.md) and, where a fixture cell
-can express it, in `test/divergent.tsv`, which `rs/tests/` runs.
+can express it, in `test/divergent.tsv`, whose every runtime column is
+run by that runtime's suite.
 
 > The ABNF / grammar-conversion CLI is **not here.** It lives in the
 > [`abnf`](https://github.com/tabnas/abnf) repo as the `tabnas-abnf` command
@@ -45,6 +46,7 @@ can express it, in `test/divergent.tsv`, which `rs/tests/` runs.
 | [`ts/bin/jsonic`](ts/bin/jsonic) | The `jsonic` bin (the only one in `package.json`). `require`s `../dist/jsonic-cli` and calls `run(process.argv, console)`, printing `e.message` on rejection. |
 | [`ts/test/cli.test.js`](ts/test/cli.test.js) | The in-language suite — plain committed JS (not compiled), run by `node --test`. Calls `run()` in-process with a fake `console`. |
 | [`ts/test/parity.test.js`](ts/test/parity.test.js) | Runs every shared `test/spec/*.tsv` fixture (auto-discovered) through `run()`. |
+| `ts/test/divergent.test.js` | Runs `test/divergent.tsv` and asserts its `ts` column, the canonical one every other column is measured against. |
 | `ts/test/doc-examples.test.ts` | Extracts ```` ```js ```` blocks with `// =>` assertions from the repo's Markdown and runs them (shared harness, identical in every tabnas repo). |
 | `ts/test/p0.js`, `p1.js`, `p2.js`, `pa-qa.js` | Plugin fixtures exercising the four export shapes `handle_plugins` accepts (bare fn, `.default`, named `[name]`, CamelCased `PaQa`). |
 | `ts/test/foo.jsonic`, `bar.jsonic` | `--file` source fixtures (`bar:1` / `qaz: 2`). |
@@ -59,6 +61,8 @@ can express it, in `test/divergent.tsv`, which `rs/tests/` runs.
 | `go/cli/help.go` | The `--help` text (mirrors the TS `help()`). |
 | `go/cli/run_test.go` | Port of `ts/test/cli.test.js`. |
 | `go/cli/parity_test.go` | `TestSpec` — globs and runs the shared `test/spec/*.tsv`. |
+| `go/cli/stringify_test.go` | The output contract of `go/cli/stringify.go`: the ECMA-262 number table and the UTF-16 cut of a string `JSON.space`, both measured under Node. |
+| `go/cli/divergence_test.go` | Runs `test/divergent.tsv` and asserts its `go` column. |
 | `go/cli/testdata/foo.jsonic`, `bar.jsonic` | Go `--file` fixtures (same contents as the TS ones). |
 | [`go/doc/`](go/doc/) | Diátaxis docs for the port. |
 | [`rs/`](rs/) | The Rust port (crate `tabnas-jsonic-cli`, library `tabnas_jsonic_cli`, binary `jsonic`). See [`rs/AGENTS.md`](rs/AGENTS.md). |
@@ -67,7 +71,7 @@ can express it, in `test/divergent.tsv`, which `rs/tests/` runs.
 | [`rs/README.md`](rs/README.md) | Reader-facing docs for the port. Gated prose, and every `rust` fence is a doctest. |
 | [`ci/rust/run.sh`](ci/rust/run.sh) | The Rust gate: fmt, build, tests, doctests, clippy, and a lockfile comparison. |
 | [`DIVERGENCE.md`](DIVERGENCE.md) | Where a port differs from ts/, with the measurements behind each claim. |
-| `test/divergent.tsv` | The executable half of that record, run by `rs/tests/divergence_test.rs`. |
+| `test/divergent.tsv` | The executable half of that record, one column per runtime, each run by that runtime's suite. |
 
 There is **no `ts/doc/grammar.*` and no railroad diagram** — there is no
 grammar.
@@ -197,7 +201,8 @@ contract above, and it is covered like this:
 | Registry-resolved built-in plugins, `RegisterPlugin`, exit codes | `go/cli/run_test.go` and `rs/tests/cli_test.rs` |
 | `JSON.stringify` parity (numbers, escaping, key order, replacer, space), measured against Node | `rs/tests/stringify_test.rs` |
 | Untrusted input: deep nesting, long input, unterminated constructs, control characters, non-UTF-8 bytes | `rs/tests/untrusted_test.rs` |
-| The recorded divergences, and that a fixed one goes red | `rs/tests/divergence_test.rs` over `test/divergent.tsv` |
+| `JSON.stringify` parity in Go (ECMA-262 numbers, a `JSON.space` cut at ten UTF-16 code units), measured against Node | `go/cli/stringify_test.go` |
+| The recorded divergences, and that a fixed one goes red | `ts/test/divergent.test.js`, `go/cli/divergence_test.go` and `rs/tests/divergence_test.rs`, each over its own column of `test/divergent.tsv` |
 | The `ts/doc/guide.md` "Verified examples" block | `ts/test/doc-examples.test.ts` |
 
 Anything expressible as argv (+ stdin) → first printed line belongs in
