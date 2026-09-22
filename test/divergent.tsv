@@ -60,15 +60,6 @@ argv	ts	go	rust	stdin	issue
 # than a repair waiting to happen.
 ["2:b,1:a"]	"{\"1\":\"a\",\"2\":\"b\"}"	"{\"2\":\"b\",\"1\":\"a\"}"	"{\"1\":\"a\",\"2\":\"b\"}"		ADR-15 key order out of contract
 #
-# A value def REPLACES the built-in ones in Go instead of merging with
-# them. `-o value.def.foo.val=1` adds a def in all three runtimes, but in
-# Go it also drops the defs the grammar ships, so `true` and `null` lex as
-# text. The repair is not in this repository: parser/go options.go rebuilds
-# cfg.ValueDef from the supplied defs alone (`cfg.ValueDef =
-# make(map[string]any)`), where the canonical util.deep merges into what is
-# already there. This row closes when that does. Measured 2026-09-22.
-["-o","value.def.foo.val=1","a:true,b:foo"]	"{\"a\":true,\"b\":1}"	"{\"a\":\"true\",\"b\":1}"	"{\"a\":true,\"b\":1}"		tabnas/parser go value.def replaces the defaults
-#
 # A source that holds no VALUE is "nothing" in the canonical command and
 # `null` in both ports. `jsonic('   ')` and `jsonic('#c')` are `undefined`
 # in TypeScript, so `util.deep(data, {val: undefined})` merges nothing and

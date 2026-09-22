@@ -227,13 +227,14 @@ Worth separating out, because each looks like one:
 
 ## Where Go diverges and Rust does not
 
-Four behaviours still differ between the Go port and this one. They are
+Three behaviours still differ between the Go port and this one. They are
 listed because a reader comparing the two ports will meet them, not
-because this port diverges: on all four, Rust prints what the canonical
+because this port diverges: on all three, Rust prints what the canonical
 TypeScript prints. Two are defects in `go/cli/stringify.go`; the third,
 key order, is ruled out of the value contract by admin `DECISIONS.md`
-ADR-15 and is a difference rather than a defect; the fourth is not this
-repository's to repair at all.
+ADR-15 and is a difference rather than a defect. A fourth, a value def
+replacing the built-in ones, closed on 2026-09-22 and is recorded at the
+end of this section.
 
 | input | TypeScript | Go | Rust |
 |---|---|---|---|
@@ -241,7 +242,6 @@ repository's to repair at all.
 | `jsonic -o 'JSON.space="2"' a:1` | two-space indent | indent of the character `2` | two-space indent |
 | `jsonic -o 'JSON.replacer="[a]"' a:1,b:2` | `{"a":1}` | `{}` | `{"a":1}` |
 | `jsonic 2:b,1:a` | `{"1":"a","2":"b"}` | `{"2":"b","1":"a"}` | `{"1":"a","2":"b"}` |
-| `jsonic -o value.def.foo.val=1 a:true,b:foo` | `{"a":true,"b":1}` | `{"a":"true","b":1}` | `{"a":true,"b":1}` |
 
 Each row is asserted, not merely written down: `test/divergent.tsv`
 carries them with a cell per runtime, and the three suites named above
@@ -296,24 +296,42 @@ string: `Jsonic("2")` is the number two and `Jsonic("[a]")` is the array
 `--`, which is why `test/spec/stringify.tsv` passes in all three either
 way. Pinned by `a_string_json_option_is_parsed_again`.
 
-**A value def replaces the built-in ones.** `-o value.def.foo.val=1`
-adds a value def in all three runtimes. In Go it also DROPS the defs the
-grammar ships, so `true` and `null` then lex as text: measured on
-2026-09-22, `jsonic -o value.def.foo.val=1 a:true,b:foo` prints
-`{"a":true,"b":1}` under `ts/src/jsonic-cli.ts` and the Rust binary, and
-`{"a":"true","b":1}` under `go/cmd/jsonic`.
+**A value def no longer replaces the built-in ones — CLOSED.** `-o
+value.def.foo.val=1` adds a value def in all three runtimes; in Go it
+also used to DROP the defs the grammar ships, so `true` and `null` lexed
+as text and `jsonic -o value.def.foo.val=1 a:true,b:foo` printed
+`{"a":"true","b":1}` where the canonical command prints
+`{"a":true,"b":1}`. The repair was never this repository's, and it
+landed upstream. The option bag the Go command builds was always the
+right one; below it, `parser/go` merged a map of option structs by
+REPLACING the entry where the canonical `util.deep` recurses into it, so
+a supplied `value.def.foo` displaced the defs the grammar ships.
+[`tabnas/parser#151`](https://github.com/tabnas/parser/issues/151) rules
+that class to the TypeScript semantics — `value.def` is named in it —
+and commit a9c4e77, "fix(go,rs): merge the options overlay as TypeScript
+does", carries the repair.
 
-The repair is not in this repository. The option bag the Go command
-builds is the right one, and a direct `jsonic.Make(tabnas.MapToOptions(
-bag))` answers the same way, so the difference is below the command:
-`parser/go`'s `options.go` rebuilds the configuration's value defs from
-the supplied ones alone (`cfg.ValueDef = make(map[string]any)`, and
-`cfg.ValueDefRe` truncated) where the canonical `util.deep` merges into
-what is already there. Working around it here would mean this command
-carrying its own copy of the grammar's default defs, which is grammar
-knowledge that belongs in the engine and would drift the day the engine
-changed. Recorded as a row rather than repaired, and the row closes when
-`tabnas/parser` does.
+Measured on 2026-09-22 by building `go/cmd/jsonic` against one
+`tabnas/parser` checkout after another: `{"a":"true","b":1}` at
+a9c4e77's parent 8ca16d8, `{"a":true,"b":1}` at a9c4e77 itself. That
+commit is in `parser go/v0.11.0` and not in `go/v0.10.0`. The same day,
+the canonical `run()` from a build of `ts/src/jsonic-cli.ts` and the
+Rust binary each print `{"a":true,"b":1}`. The register row is gone with
+the divergence, which is what the register is for.
+
+**Which parser a build resolves decides what it prints.** CI and a dev
+checkout resolve `parser/go` through a `go.work` onto a sibling
+checkout, not through `go/go.mod`, and CI clones that closure at `main`,
+which carries the repair — that is the environment this register is
+measured in. `go/go.mod` still requires `parser/go v0.9.0`, so a
+`GOWORK=off` build, the published-dependency check in `AGENTS.md`, still
+prints the old `{"a":"true","b":1}`. That pin cannot move on its own:
+`jsonic/go v0.6.6` does not compile against `parser/go v0.11.1`
+(`unknown field SI in struct literal of type Point`, from the `Site`
+rename in `parser go/v0.10.0`), so it moves when a `jsonic/go` built on
+that parser is published. Until then this input is not a `test/spec/`
+row: everything in that directory has to pass in every runtime, in both
+environments.
 
 ## A source with no value in it
 
