@@ -68,3 +68,17 @@ argv	ts	go	rust	stdin	issue
 # make(map[string]any)`), where the canonical util.deep merges into what is
 # already there. This row closes when that does. Measured 2026-09-22.
 ["-o","value.def.foo.val=1","a:true,b:foo"]	"{\"a\":true,\"b\":1}"	"{\"a\":\"true\",\"b\":1}"	"{\"a\":true,\"b\":1}"		tabnas/parser go value.def replaces the defaults
+#
+# A source that holds no VALUE is "nothing" in the canonical command and
+# `null` in both ports. `jsonic('   ')` and `jsonic('#c')` are `undefined`
+# in TypeScript, so `util.deep(data, {val: undefined})` merges nothing and
+# what came before survives; both engines answer `null` instead, which
+# clobbers it. A source of zero length is already right everywhere (the Go
+# command forces the engine's empty result to the Undefined sentinel, and
+# the Rust engine answers with it), so this is the same empty result
+# reached by a source that has bytes but no value. The repair is in the
+# engines, not here: deciding that a source holds no value takes lexing,
+# and this command has no grammar of its own. Measured 2026-09-22 over the
+# three commands.
+["a:1","   "]	"{\"a\":1}"	"null"	"null"		tabnas/jsonic empty result for a valueless source
+["a:1","#c"]	"{\"a\":1}"	"null"	"null"		tabnas/jsonic empty result for a valueless source

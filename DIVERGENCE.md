@@ -315,6 +315,36 @@ knowledge that belongs in the engine and would drift the day the engine
 changed. Recorded as a row rather than repaired, and the row closes when
 `tabnas/parser` does.
 
+## A source with no value in it
+
+| input | TypeScript | Go | Rust |
+|---|---|---|---|
+| `jsonic a:1 '   '` | `{"a":1}` | `null` | `null` |
+| `jsonic a:1 '#c'` | `{"a":1}` | `null` | `null` |
+| `jsonic a:1 ''` | `{"a":1}` | `{"a":1}` | `{"a":1}` |
+
+A source holding only whitespace, or only a comment, parses to
+`undefined` in the canonical command, so `util.deep(data, {val:
+undefined})` merges nothing and what came before survives. Both engines
+answer `null` for the same source, and the merge then replaces the value
+built up so far. The third row is the case that already agrees: a source
+of ZERO LENGTH is the engines' empty result, which the Go command forces
+to the Undefined sentinel and the Rust engine answers with, so an empty
+`--file` or an empty pipe is a no-op in all three.
+
+So the difference is not "empty source" but WHICH sources count as
+empty: the canonical takes any source that yields no value, and the
+engines take a source with no bytes. It bites hardest where the merge
+matters, `jsonic -f config.jsonic` with a terminal or a whitespace-only
+pipe answering standard input, where the file's value is replaced by
+`null` rather than kept.
+
+Not repairable in this repository, and the same in both ports. Deciding
+that a source holds no value takes lexing it, and this command has no
+grammar of its own; the fix belongs where the empty result is decided,
+in `tabnas/jsonic`. Recorded as two register rows, asserted by all three
+suites, and they close when the engines do.
+
 ## Repaired, and no longer divergent
 
 Two behaviours listed here until 2026-09-22 were Go defects, reported as
