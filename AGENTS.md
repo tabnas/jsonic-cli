@@ -319,7 +319,7 @@ change one, edit it in a reviewed pull request: session credentials push
 2026-09-24). They still cannot push tags, so a maintainer pushes any tag
 that a tag-triggered workflow needs. Mirror the change in admin where
 admin keeps a copy: if admin's `rollout/workflows/` holds a
-`jsonic-cli__<file>.yml` template for it, make the same edit there, or
+`jsonic-cli__<file>` template for it, make the same edit there, or
 admin `scripts/verify.sh` reports drift and a maintainer's
 `rollout/apply-workflows.sh --apply` pushes the older text back. The
 two that gate and ship the package:

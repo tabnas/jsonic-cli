@@ -11,7 +11,7 @@ pushes any tag that a tag-triggered workflow needs.
 
 The amendment also asks for the same change in `tabnas/admin` wherever
 admin keeps a copy of the workflow. If admin's `rollout/workflows/`
-holds a `jsonic-cli__<file>.yml` template for the workflow you changed, make
+holds a `jsonic-cli__<file>` template for the workflow you changed, make
 the same edit there: admin `scripts/verify.sh` compares each template
 with its deployed copy, and a maintainer's
 `rollout/apply-workflows.sh --apply` would push the older text back over
