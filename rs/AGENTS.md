@@ -138,8 +138,9 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 From the repository root, `make test-rs` is the fast inner loop and
 `bash ci/rust/run.sh` is the whole gate, including formatting and the
-lockfile comparison. `ci/workflows/rust.yml` runs that same script and is
-STAGED under ADR-8: a maintainer promotes it, never a session.
+lockfile comparison. `.github/workflows/rust.yml` runs that same script
+in CI; a change to it is staged under ADR-8 and promoted by a
+maintainer, never a session.
 
 `rs/README.md` is in the gated documentation set
 (`ts/scripts/gated-docs.cjs`), so `make prose` and

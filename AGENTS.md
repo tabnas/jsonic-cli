@@ -332,10 +332,11 @@ Note CI builds the full sibling set even though this repo only *imports*
 jsonic + debug + (type-only) parser, because those are jsonic's own
 transitive build dependencies.
 
-The Rust gate is **staged, not active**: `ci/workflows/rust.yml` runs
+The Rust gate runs in CI: `.github/workflows/rust.yml` runs
 `ci/rust/run.sh` on the MSRV toolchain with the sibling checkouts its
-path dependencies need, and a maintainer promotes it under admin
-`DECISIONS.md` ADR-8. A session never writes `.github/workflows/*`.
+path dependencies need. A change to it is staged under `ci/workflows/`
+and promoted by a maintainer under admin `DECISIONS.md` ADR-8; a session
+never writes `.github/workflows/*`.
 
 ## Releasing
 
