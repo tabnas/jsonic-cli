@@ -311,22 +311,36 @@ delegates to the `ts/` `reset` script and rebuilds/retests Go.
 
 ## CI
 
-Two workflows, both org-standard (the old per-repo `build.yml` is gone;
-`.github/workflows/*` is written by the `tabnas/admin` rollout, not from a
-session):
+The workflows are org-standard (the old per-repo `build.yml` is gone):
+`ci.yml`, `release.yml`, `github-release.yml`, `crates-release.yml`,
+`rust.yml`, `docs.yml`, `notify-status.yml` and `scorecard.yml`. To
+change one, edit it in a reviewed pull request: session credentials push
+`.github/workflows/*` (admin `DECISIONS.md` ADR-8, as amended
+2026-09-24). They still cannot push tags, so a maintainer pushes any tag
+that a tag-triggered workflow needs. Mirror the change in admin where
+admin keeps a copy: if admin's `rollout/workflows/` holds a
+`jsonic-cli__<file>` template for it, make the same edit there, or
+admin `scripts/verify.sh` reports drift and a maintainer's
+`rollout/apply-workflows.sh --apply` pushes the older text back. The
+two that gate and ship the package:
 
 - [`ci.yml`](.github/workflows/ci.yml) — a thin caller of the shared
   `tabnas/.github` `polyglot-ci.yml`, passing
-  `deps: "parser debug json abnf railroad jsonic"`. That reusable workflow
+  `deps: "parser support debug json jsonic"`. That reusable workflow
   clones the tabnas closure as siblings, builds them in topo order (so
   jsonic and debug are built before this repo), then builds and tests both
   the TS and Go sides here.
 - [`release.yml`](.github/workflows/release.yml) — publishes the npm
-  package on a `ts/v*` tag via GitHub OIDC trusted publishing. It builds
-  against already-published dependency versions and does **not** re-run the
-  suite (some sibling-by-path tests can't resolve in that standalone env);
-  the gate is a green `ci` on main, enforced by `admin/publish.sh`. The Go
-  module needs no publish step — the proxy serves it from the `go/v*` tag.
+  package via GitHub OIDC trusted publishing, on a `workflow_dispatch`
+  from `main` (the normal path; see "Releasing") or on a `ts/v*` tag that
+  `admin/publish.sh` pushes. It builds against already-published
+  dependency versions and does **not** re-run the suite (some
+  sibling-by-path tests can't resolve in that standalone env); the gate
+  is a green `ci.yml` and `rust.yml` on the bump commit, which
+  "Releasing" step 4 has you wait for. `admin/publish.sh` checks `ci`
+  only after it has published, so its check cannot stop a bad release.
+  The Go module needs no publish step — the proxy serves it from the
+  `go/v*` tag.
 
 Note CI builds the full sibling set even though this repo only *imports*
 jsonic + debug + (type-only) parser, because those are jsonic's own
@@ -334,9 +348,8 @@ transitive build dependencies.
 
 The Rust gate runs in CI: `.github/workflows/rust.yml` runs
 `ci/rust/run.sh` on the MSRV toolchain with the sibling checkouts its
-path dependencies need. A change to it is staged under `ci/workflows/`
-and promoted by a maintainer under admin `DECISIONS.md` ADR-8; a session
-never writes `.github/workflows/*`.
+path dependencies need. A change to it goes in a reviewed pull request
+like any other workflow change.
 
 ## Releasing
 
@@ -422,11 +435,12 @@ The steps, in order:
    immutably. If you take it, say so.
 4. **Wait for `main` CI to go green on the bump commit.** The release
    workflow **has no test step** — it reads `main`, builds against
-   already-published dependencies, publishes and tags. `ci.yml` on the bump
-   commit is the only gate there is. An npm version is immutable, and a Go
-   module tag is worse: proxy.golang.org caches module versions permanently,
-   so a `go/vX.Y.Z` naming the wrong commit cannot be moved, only
-   superseded.
+   already-published dependencies, publishes and tags. `ci.yml` and
+   `rust.yml` on the bump commit are the only gate there is: the bump
+   touches `rs/`, so the Rust gate runs on it too. An npm version is
+   immutable, and a Go module tag is worse: proxy.golang.org caches
+   module versions permanently, so a `go/vX.Y.Z` naming the wrong commit
+   cannot be moved, only superseded.
 5. **Record the release commit, then dispatch.** The confirmation
    below compares each tag against the commit you released, and a run
    that publishes and then fails to tag can be followed by `main`

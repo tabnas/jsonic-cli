@@ -1,13 +1,21 @@
 # ci/
 
-Staging area for GitHub Actions workflow changes.
+The scripts the CI workflows run, kept here so that you can run them
+too. See "What still lives here" below.
 
-This directory exists because session credentials cannot write
-`.github/workflows/*` — see admin `DECISIONS.md` ADR-8. To change CI:
+To change CI, edit `.github/workflows/` in a reviewed pull request.
+Session credentials push workflow files (admin `DECISIONS.md` ADR-8, as
+amended 2026-09-24), so staging a workflow here first for a maintainer
+to promote is optional. Sessions still cannot push tags, so a maintainer
+pushes any tag that a tag-triggered workflow needs.
 
-1. Put the intended workflow file in `workflows/`.
-2. A maintainer promotes it with the admin `rollout/apply-ci-folders.sh`
-   script.
+The amendment also asks for the same change in `tabnas/admin` wherever
+admin keeps a copy of the workflow. If admin's `rollout/workflows/`
+holds a `jsonic-cli__<file>` template for the workflow you changed, make
+the same edit there: admin `scripts/verify.sh` compares each template
+with its deployed copy, and a maintainer's
+`rollout/apply-workflows.sh --apply` would push the older text back over
+yours.
 
 ## Promoted, 2026-09-22
 
@@ -17,11 +25,11 @@ script rather than edited: `workflows/docs.yml` is
 `.github/workflows/rust.yml`. Nothing is pending. Read the workflows
 themselves rather than a description of them here.
 
-`rust.yml` still opens with a header calling itself PROPOSED and telling
-the reader to move it into `.github/workflows/`, which is where it
-already is. The rollout moves files and does not rewrite their comments,
-and session credentials cannot push `.github/workflows/*` to correct it,
-so the fix is a staged copy here and another rollout run.
+`rust.yml` opened with a header calling itself PROPOSED and telling the
+reader to move it into `.github/workflows/`, which is where it already
+was: the rollout moves files and does not rewrite their comments. The
+header was corrected in place once ADR-8's amendment let a session edit
+the live file.
 
 ## What still lives here
 
