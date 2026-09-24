@@ -42,7 +42,7 @@ sweep, an install or a fetch, a release, a wait on CI, a benchmark, a
 script or loop you write, and anything sent to the background.
 
 - **Minimal is enough.** One line with the step and a count, such as
-  `conformance: 412/1500 (27%)`, meets it. When no total is known, print
+  `conformance: 412 of 1500 (27%)`, meets it. When no total is known, print
   what is known (the step, the current item, the elapsed time) and say the
   percentage is unknown rather than inventing one.
 - **Build it into what you write.** A script or loop prints a line per
@@ -332,10 +332,11 @@ Note CI builds the full sibling set even though this repo only *imports*
 jsonic + debug + (type-only) parser, because those are jsonic's own
 transitive build dependencies.
 
-The Rust gate is **staged, not active**: `ci/workflows/rust.yml` runs
+The Rust gate runs in CI: `.github/workflows/rust.yml` runs
 `ci/rust/run.sh` on the MSRV toolchain with the sibling checkouts its
-path dependencies need, and a maintainer promotes it under admin
-`DECISIONS.md` ADR-8. A session never writes `.github/workflows/*`.
+path dependencies need. A change to it is staged under `ci/workflows/`
+and promoted by a maintainer under admin `DECISIONS.md` ADR-8; a session
+never writes `.github/workflows/*`.
 
 ## Releasing
 

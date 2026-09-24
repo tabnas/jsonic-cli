@@ -9,23 +9,25 @@ This directory exists because session credentials cannot write
 2. A maintainer promotes it with the admin `rollout/apply-ci-folders.sh`
    script.
 
-## Pending
+## Promoted, 2026-09-22
 
-- **`workflows/docs.yml`** — the prose gate: Vale over the reader-facing
-  pages at the levels set in `.vale.ini`, on the file list
-  `ts/scripts/gated-docs.cjs` produces. See `docs/STYLE-GUIDE.md`.
+Both files that were staged here are now live, moved by the rollout
+script rather than edited: `workflows/docs.yml` is
+`.github/workflows/docs.yml` and `workflows/rust.yml` is
+`.github/workflows/rust.yml`. Nothing is pending. Read the workflows
+themselves rather than a description of them here.
 
-  It needs no sibling checkouts and no secrets, and pins its own Vale
-  version. Errors fail the job; warnings go to the run summary as a
-  report. `make prose` runs the identical check locally, and the test
-  suite already runs the other half of the gate
-  (`ts/test/docs.test.js`), so promoting this adds the spelling and
-  Google-convention arm rather than the whole gate.
+`rust.yml` still opens with a header calling itself PROPOSED and telling
+the reader to move it into `.github/workflows/`, which is where it
+already is. The rollout moves files and does not rewrite their comments,
+and session credentials cannot push `.github/workflows/*` to correct it,
+so the fix is a staged copy here and another rollout run.
 
-- **`workflows/rust.yml`** — the Rust gate: `ci/rust/run.sh` over the
-  `rs/` crate, on the MSRV toolchain, with the sibling checkouts the
-  crate's path dependencies need. Standalone rather than an arm of
-  `ci.yml`, because `ci.yml` calls the org-shared polyglot workflow and
-  that takes no Rust input, so promoting this needs no change in
-  `tabnas/.github`. `make test-rs` is the fast local loop and
-  `bash ci/rust/run.sh` is the identical full gate.
+## What still lives here
+
+- **`rust/run.sh`** is the Rust gate itself, over the `rs/` crate on the
+  MSRV toolchain. `.github/workflows/rust.yml` runs it with the sibling
+  checkouts the crate's path dependencies need, standalone rather than
+  as an arm of `ci.yml`, because `ci.yml` calls the org-shared polyglot
+  workflow and that takes no Rust input. `make test-rs` is the fast
+  local loop and `bash ci/rust/run.sh` is the identical full gate.
