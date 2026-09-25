@@ -168,3 +168,5 @@ go.work.sum
 # --- Rust ---
 # Cargo's build output for rs/ (Cargo.lock IS committed).
 target/
+
+.DS_Store
