@@ -5,13 +5,14 @@
 
 [package]
 name = "tabnas-jsonic-cli"
-version = "0.5.8"
+version = "0.5.9"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
 description = "Command-line interface for the jsonic relaxed-JSON parser: reads relaxed JSON from arguments, files or standard input and prints standard JSON."
 repository = "https://github.com/tabnas/jsonic-cli"
 readme = "README.md"
+include = ["src/**", "README.md", "LICENSE"]
 keywords = ["jsonic", "json", "cli", "parser", "tabnas"]
 categories = ["command-line-utilities", "parsing"]
 
@@ -31,9 +32,11 @@ path = "src/bin/jsonic.rs"
 # CHECKOUTS, the standard tabnas development model: clone
 # https://github.com/tabnas/parser, https://github.com/tabnas/jsonic,
 # https://github.com/tabnas/json and https://github.com/tabnas/debug next
-# to this repo. None of them is published, so there is no registry version
-# to fall back on.
-tabnas = { path = "../../parser/rs" }
+# to this repo. Each is published on crates.io too, and the release
+# workflow rewrites these paths into requirements on their newest versions
+# when it publishes this crate (admin ADR-21). The engine's crate is
+# tabnas-parser; it keeps the `tabnas` name here.
+tabnas = { package = "tabnas-parser", path = "../../parser/rs" }
 tabnas-jsonic = { path = "../../jsonic/rs" }
 # The two remaining built-in plugins of the compiled-in registry, which
 # stands in for the TypeScript CLI's `require`. Both are runtime
