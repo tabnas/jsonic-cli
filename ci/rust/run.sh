@@ -6,8 +6,8 @@
 # The engine, the two grammars, the debug plugin and the support crate
 # are PATH DEPENDENCIES on sibling checkouts (rs/Cargo.toml:
 # `../../parser/rs`, `../../jsonic/rs`, `../../json/rs`, `../../debug/rs`
-# and `../../support/rs`), and none of them is published, so there is no
-# registry version to fall back on. Clone
+# and `../../support/rs`). The gate builds against those checkouts, not
+# against crates.io, so the siblings must be present. Clone
 # https://github.com/tabnas/parser, https://github.com/tabnas/jsonic,
 # https://github.com/tabnas/json, https://github.com/tabnas/debug and
 # https://github.com/tabnas/support next to this repo before running.
