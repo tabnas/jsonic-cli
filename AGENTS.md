@@ -158,15 +158,17 @@ beyond jsonic:
   `import`s `Debug` at the top level and installs it when the user passes
   `--debug` / `-d`. So debug must resolve at runtime for that flag to work;
   npm 7+ installs it automatically alongside the CLI.
-- `@tabnas/parser` is pulled in solely so the `@tabnas/jsonic` type imports
-  (`import type { Plugin } from '@tabnas/jsonic'`) resolve at build time.
-  The CLI never imports `@tabnas/parser` directly.
+- `@tabnas/parser` is a devDependency only, there so the `@tabnas/jsonic`
+  type imports (`import type { Plugin } from '@tabnas/jsonic'`) resolve at
+  build time. The CLI never imports `@tabnas/parser` directly; at run time
+  it arrives as jsonic's own peer.
 
-All three are declared both as peers and as devDependencies:
+jsonic and debug are declared both as peers and as devDependencies, and
+parser as a devDependency alone:
 
 ```json
 "peerDependencies": {
-  "@tabnas/jsonic": ">=0", "@tabnas/debug": ">=0", "@tabnas/parser": ">=0"
+  "@tabnas/jsonic": ">=0", "@tabnas/debug": ">=0"
 }
 "devDependencies": {
   "@tabnas/jsonic": "*", "@tabnas/debug": "*", "@tabnas/parser": "*"
