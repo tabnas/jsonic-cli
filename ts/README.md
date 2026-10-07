@@ -51,7 +51,7 @@ The Go port lives in [`../go`](../go) with its own
 ## Build & test
 
 ```bash
-npm install      # resolves the @tabnas siblings
+npm install      # installs the @tabnas packages from the npm registry
 npm run build    # tsc --build src
 npm test         # node --test (CLI tests + doc-example harness)
 ```

@@ -6,10 +6,10 @@ package cli
 // `test/spec/*.tsv` fixtures at the repo root (see ../../test/AGENTS.md).
 //
 // The fixture loader, the escape codec and the comparison come from
-// github.com/tabnas/support/go, whose TypeScript half
-// ts/test/parity.test.js uses to run the SAME files — so the two
-// implementations cannot drift without one of them going red, and neither
-// can the two loaders.
+// github.com/tabnas/support/go, whose TypeScript and Rust halves
+// ts/test/parity.test.js and rs/tests/parity_test.rs use to run the SAME
+// files — so the implementations cannot drift without one of them going
+// red, and neither can the loaders.
 //
 // (The TS side keeps its own row loop: running the CLI is asynchronous
 // there, and the runner's loop is synchronous in both languages. It uses
@@ -34,7 +34,7 @@ const containsPrefix = "CONTAINS:"
 
 // TestSpec runs every fixture in the spec directory. FindSpecDir walks up
 // from the package directory, and Dir discovers the files by listing, so
-// adding a .tsv runs it in both runtimes without touching either runner.
+// adding a .tsv runs it in every runtime without touching any runner.
 func TestSpec(t *testing.T) {
 	dir, err := support.FindSpecDir("")
 	if err != nil {

@@ -12,9 +12,9 @@ to compile in additional `-p`/`--plugin` plugins).
 
 ## Step 1: Get the code and build
 
-The Go module wraps unpublished `@tabnas` Go siblings (jsonic, parser, json,
-debug) via `replace` directives, so clone them as siblings of this repo
-(see `go/go.mod`). With those in place, from the repo's `go/` directory:
+The Go module requires published `@tabnas` Go siblings (jsonic, parser,
+json, debug), and `go build` fetches them from the module proxy
+(see `go/go.mod`). From the repo's `go/` directory:
 
 ```bash
 cd go

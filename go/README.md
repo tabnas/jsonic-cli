@@ -17,9 +17,9 @@ binaries can register more via `cli.RegisterPlugin` before calling
 ## Build & run
 
 [`go.mod`](go.mod) requires the `@tabnas` Go siblings (`jsonic`, `parser`,
-`debug`, `json`) at published versions; a local checkout resolves them
-through the repo-set `go.work` instead, so clone them as siblings first.
-Then:
+`debug`, `json`) at published versions, which `go build` fetches from the
+module proxy; a `go.work` one level up, written by `scripts/link.sh`,
+points them at local checkouts instead. Then:
 
 ```bash
 cd go
@@ -59,7 +59,7 @@ go test ./...
 
 `cli/run_test.go` ports `../ts/test/cli.test.js` one-for-one, and
 `cli/parity_test.go` runs the shared `../test/spec/*.tsv` fixtures that the
-TypeScript suite also runs, so the two implementations cannot drift
+TypeScript and Rust suites also run, so the implementations cannot drift
 without one of them going red.
 
 ## License
