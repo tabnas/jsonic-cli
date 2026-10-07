@@ -179,24 +179,28 @@ down to the details that differ from Rust's own formatting:
 
 ## Install
 
-Neither the engine nor the grammars are published to a registry, so all
-four are consumed as **sibling checkouts**, the standard tabnas
-development model. Clone `https://github.com/tabnas/parser`,
-`https://github.com/tabnas/jsonic`, `https://github.com/tabnas/json` and
-`https://github.com/tabnas/debug` next to this repository and point at
-them:
+The command and its library are on crates.io as `tabnas-jsonic-cli`,
+and the engine as `tabnas-parser`, whose library is named `tabnas` in
+code.
+`cargo install tabnas-jsonic-cli` puts the `jsonic` binary on your
+`PATH`, and a program that uses the library adds both crates:
 
-```toml
-[dependencies]
-tabnas-jsonic-cli = { path = "../jsonic-cli/rs" }
-tabnas = { path = "../parser/rs" }
+```bash
+cargo add tabnas-jsonic-cli tabnas-parser
 ```
 
 Both entries are needed for the plugin example above: a crate's
 dependencies are not passed on to its dependents, so `tabnas-jsonic-cli`
-alone does not put `tabnas` in the extern prelude. The test suite
-additionally needs `https://github.com/tabnas/support` beside the
-repository, for the shared fixture runner.
+alone does not put `tabnas` in the extern prelude.
+
+In this repository the crates it depends on are taken by path from
+sibling checkouts instead, so clone
+`https://github.com/tabnas/parser`, `https://github.com/tabnas/jsonic`,
+`https://github.com/tabnas/json` and `https://github.com/tabnas/debug`
+next to it. The test suite additionally needs
+`https://github.com/tabnas/support` beside the repository, for the shared
+fixture runner. The release workflow swaps those paths for crates.io
+versions when it publishes this crate.
 
 ## Differences from the canonical TypeScript
 

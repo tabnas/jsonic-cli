@@ -319,9 +319,10 @@ the canonical `run()` from a build of `ts/src/jsonic-cli.ts` and the
 Rust binary each print `{"a":true,"b":1}`. The register row is gone with
 the divergence, which is what the register is for.
 
-**Which parser a build resolves decides what it prints.** CI and a dev
-checkout resolve `parser/go` through a `go.work` onto a sibling
-checkout, not through `go/go.mod`, and CI clones that closure at `main`,
+**Which parser a build resolves decides what it prints.** CI, and a dev
+checkout that admin's `scripts/link.sh` has wired, resolve `parser/go`
+through a `go.work` onto a sibling checkout, not through `go/go.mod`, and
+CI clones that closure at `main`,
 which carries the repair — that is the environment this register is
 measured in. `go/go.mod` still requires `parser/go v0.9.0`, so a
 `GOWORK=off` build, the published-dependency check in `AGENTS.md`, still

@@ -5,9 +5,10 @@
 // at the repo root (see ../../test/AGENTS.md).
 //
 // The fixture loader, the escape codec and the comparison come from
-// @tabnas/support, whose Go half `go/cli/parity_test.go` uses to run the
-// SAME files — so the two implementations cannot drift without one of them
-// going red, and neither can the two loaders.
+// @tabnas/support, whose Go and Rust halves `go/cli/parity_test.go` and
+// `rs/tests/parity_test.rs` use to run the SAME files — so the
+// implementations cannot drift without one of them going red, and neither
+// can the loaders.
 //
 // The Go side drives them through `support.Runner`; this side cannot,
 // because running the CLI is ASYNCHRONOUS and the runner's row loop is

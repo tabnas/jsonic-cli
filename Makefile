@@ -2,10 +2,11 @@
 # implementations of the jsonic CLI. ts/ is canonical; go/ and rs/ track
 # it.
 #
-# Local Go build/test resolve the unpublished @tabnas siblings (jsonic,
-# parser, json, debug) via the repo-set go.work; the TS side resolves them
-# via node_modules symlinks (admin/scripts/link.sh); the Rust side resolves
-# them as path dependencies on sibling checkouts (rs/Cargo.toml).
+# TypeScript and Go build against the published @tabnas siblings (jsonic,
+# parser, json, debug) from npm and the Go proxy; admin/scripts/link.sh can
+# point them at local checkouts instead (node_modules symlinks + a go.work
+# one level up). The Rust side resolves them as path dependencies on
+# sibling checkouts (rs/Cargo.toml).
 
 .PHONY: all build test clean build-ts build-go build-rs test-ts test-go test-rs \
         clean-ts clean-go clean-rs publish-ts publish-go version-rs tags-go reset \

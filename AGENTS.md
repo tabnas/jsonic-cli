@@ -106,7 +106,7 @@ run by that runtime's suite.
 | `ts/test/p0.js`, `p1.js`, `p2.js`, `pa-qa.js` | Plugin fixtures exercising the four export shapes `handle_plugins` accepts (bare fn, `.default`, named `[name]`, CamelCased `PaQa`). |
 | `ts/test/foo.jsonic`, `bar.jsonic` | `--file` source fixtures (`bar:1` / `qaz: 2`). |
 | [`ts/doc/`](ts/doc/) | Diátaxis docs (tutorial / guide / reference / concepts). No `grammar.*` — there is no grammar. |
-| [`test/spec/`](test/spec/) | The shared TSV fixtures both runtimes run — see [`test/AGENTS.md`](test/AGENTS.md). |
+| [`test/spec/`](test/spec/) | The shared TSV fixtures every runtime runs — see [`test/AGENTS.md`](test/AGENTS.md). |
 | [`go/`](go/) | The Go port (module `github.com/tabnas/jsonic-cli/go`). |
 | [`go/cmd/jsonic/main.go`](go/cmd/jsonic/main.go) | Thin entry: `cli.Run(os.Args[1:], cli.ReadStdin(), os.Stdout, nil)`. Holds `const VERSION` (injected by `make publish-go`). |
 | [`go/cli/run.go`](go/cli/run.go) | The library package: `Run`/`runLog` (plugin/option/meta wiring, source merge, serialization) + `ReadStdin`. |
@@ -146,10 +146,11 @@ grammar.
 
 ## The tabnas engine dependency
 
-In a dev checkout this package resolves its `@tabnas` dependencies from the
-**sibling repos** (the standard tabnas dev model). It is **not** the usual
-all-dev-only arrangement, because the CLI uses tabnas packages at runtime
-beyond jsonic:
+TypeScript and Go install this package's `@tabnas` dependencies as
+published packages, from the npm registry and the Go module proxy; a
+sibling checkout is optional local wiring there, and only the Rust crate
+needs one. It is **not** the usual all-dev-only arrangement, because the
+CLI uses tabnas packages at runtime beyond jsonic:
 
 - `@tabnas/jsonic` is the engine wrapper the CLI parses with — a **runtime
   peer dependency** (`">=0"`).
@@ -176,16 +177,19 @@ parser as a devDependency alone:
 ```
 
 `engines.node` is `">=24"`; npm >=7 / Node >=24 auto-installs peers.
-`node_modules/@tabnas/{jsonic,debug,parser,json}` resolve as symlinks into
-the sibling checkouts (wired by `admin/scripts/link.sh` — do not `npm ci`
-or delete `node_modules`, that breaks the wiring). Clone
+`npm install` puts the registry copies of
+`@tabnas/{jsonic,debug,parser,json}` in `node_modules`. Where admin's
+`scripts/link.sh` has wired local checkouts they are symlinks into those
+instead, and `npm ci` or deleting `node_modules` drops the links until
+`link.sh` runs again. To work against unreleased siblings, clone
 `https://github.com/tabnas/{jsonic,debug,parser}` (plus their own
-transitive closure) as siblings and build their TS first, then work here.
-CI does this for you (see below).
+transitive closure) beside this repo, build their TS and run `link.sh`.
+CI builds the siblings it names in `deps` the same way (see below).
 
 The Go module's dependencies (`jsonic/go`, `parser/go`, `debug/go`,
 `json/go`) are required at published versions in [`go/go.mod`](go/go.mod)
-and resolved locally through the repo-set `go.work`.
+and fetched from the module proxy; a `go.work` one level up, written by
+`link.sh`, points them at local checkouts instead.
 
 There is **no `@tabnas/railroad` dependency** — there is no grammar to
 diagram.
@@ -263,17 +267,18 @@ contract above, and it is covered like this:
 | The `ts/doc/guide.md` "Verified examples" block | `ts/test/doc-examples.test.ts` |
 
 Anything expressible as argv (+ stdin) → first printed line belongs in
-`test/spec/`, so both runtimes check it. Keep it that way.
+`test/spec/`, so every runtime checks it. Keep it that way.
 
 ## Build & test
 
-From the repo root, `make build` (= `build-ts` + `build-go`) and
-`make test` (= `test-ts` + `test-go`) do everything. Per runtime:
+From the repo root, `make build` (= `build-ts` + `build-go` + `build-rs`)
+and `make test` (= `test-ts` + `test-go` + `test-rs`) do everything. Per
+runtime:
 
 ```bash
 (
   cd ts
-  npm install            # peers auto-install; @tabnas siblings are symlinks
+  npm install            # peers auto-install; @tabnas packages come from the registry
   npm run build          # tsc --build src   (NOT "src test")
   npm test               # node --enable-source-maps --test 'test/**/*.test.js' 'test/**/*.test.ts'
   cd ../go
@@ -403,12 +408,13 @@ The steps, in order:
    suite then passes against unreleased code while appearing to verify the
    published one. Reinstalling is the part that matters.
 
-   One thing a clean install does **not** isolate:
-   `ts/test/doc-examples.test.*` resolves `@tabnas/*` by filesystem path
-   (`const TABNAS = path.join(REPO, '..')`), not through `node_modules`. If
-   unbuilt sibling checkouts sit beside this repo, those blocks fail with
-   `MODULE_NOT_FOUND` no matter what you installed — build the siblings, or
-   verify somewhere they are absent.
+   A clean install covers the doc examples too.
+   `ts/test/doc-examples.test.*` resolves a doc example's `require` through
+   `node_modules` first, and the only tested block here, the "Verified
+   examples" in `ts/doc/guide.md`, requires `@tabnas/jsonic-cli` itself,
+   which resolves to this repository's `ts/`. Only a `@tabnas/*` package
+   that is not installed falls back to the sibling checkout `../<x>/ts`
+   (`const TABNAS = path.join(REPO, '..')`), and no example here needs one.
 
    **Build first.** This package's `npm test` neither has a `pretest` build
    nor builds in its `test` script, so it runs whatever is already in
@@ -422,13 +428,17 @@ The steps, in order:
    ```bash
    (
      cd go
-     go mod edit -json | grep -q '"Replace": null' || { echo 'go.mod has a replace'; exit 1; }
+     go mod edit -json | jq -e '.Replace == null' >/dev/null || { echo 'go.mod has a replace'; exit 1; }
      GOWORK=off go test -count=1 ./...
    )
    ```
 
    `-count=1` because shared fixtures live outside the Go module, so a
-   changed corpus does not invalidate the test cache.
+   changed corpus does not invalidate the test cache. The check asks `jq`,
+   not `grep`: current Go leaves the `Replace` key out when there is no
+   replace, where older Go printed `"Replace": null`, and `jq` reads a
+   missing key as null, so the check passes on a clean `go.mod` and fails
+   on a replace either way.
 3. **Merge the bump through a reviewed PR.** That is the house convention —
    `CONTRIBUTING.md` squash-merges PRs and takes the title as the commit
    message — and what `release.yml`'s own header describes. A direct push to
