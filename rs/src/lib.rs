@@ -44,7 +44,7 @@ pub use registry::{plugins, register_plugin};
 /// of them, and `tests/version_test.rs` fails the build if they drift.
 /// Mirrors `VERSION` in `ts/src/jsonic-cli.ts` and `const VERSION` in
 /// `go/cmd/jsonic/main.go`.
-pub const VERSION: &str = "0.5.13";
+pub const VERSION: &str = "0.5.14";
 
 #[cfg(doctest)]
 #[doc = include_str!("../README.md")]
